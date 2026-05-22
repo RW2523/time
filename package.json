@@ -1,0 +1,29 @@
+{
+  "name": "bible-journey-map-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm:server\" \"npm:client\"",
+    "client": "vite --host 0.0.0.0 --port 5173",
+    "server": "node server/index.js",
+    "generate:perspectives": "node scripts/generate-event-person-perspectives.mjs",
+    "video:slideshow": "node scripts/images-to-mp4.mjs",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173"
+  },
+  "dependencies": {
+    "@google/genai": "latest",
+    "@vitejs/plugin-react": "latest",
+    "concurrently": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "leaflet": "^1.9.4",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-leaflet": "^5.0.0",
+    "vite": "latest"
+  }
+}
