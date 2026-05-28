@@ -1,5 +1,29 @@
-node_modules
+# ── Build outputs ────────────────────────────────────────────────────────────
 dist
+sabai-bible/dist
+
+# ── Dependencies ─────────────────────────────────────────────────────────────
+node_modules
+sabai-bible/node_modules
+
+# ── Environment files (never commit real secrets) ────────────────────────────
 .env
+.env.local
+.env.*.local
+sabai-bible/.env
+sabai-bible/.env.local
+sabai-bible/.env.*.local
+
+# ── Generated server output (large binary + AI-generated files) ──────────────
 server/generated
+
+# ── OS junk ──────────────────────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
+
+# ── Editor / IDE ─────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+
+# ── Vercel local config ───────────────────────────────────────────────────────
+sabai-bible/.vercel

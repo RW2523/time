@@ -1,0 +1,104 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SabAI Bible — GitLab CI/CD Pipeline
+# Stages: test → build → deploy (Vercel)
+#
+# Required GitLab CI/CD Variables (Settings → CI/CD → Variables):
+#   VERCEL_TOKEN           – Vercel personal access token
+#   VERCEL_ORG_ID          – Vercel org/team ID  (vercel link → .vercel/project.json)
+#   VERCEL_PROJECT_ID      – Vercel project ID   (vercel link → .vercel/project.json)
+#   VITE_SUPABASE_URL      – Supabase project URL
+#   VITE_SUPABASE_ANON_KEY – Supabase anon/public key
+# ─────────────────────────────────────────────────────────────────────────────
+
+stages:
+  - test
+  - build
+  - deploy
+
+# ── Shared configuration ──────────────────────────────────────────────────────
+default:
+  image: node:20-alpine
+  cache:
+    key:
+      files:
+        - sabai-bible/package-lock.json
+    paths:
+      - sabai-bible/node_modules/
+    policy: pull-push
+
+# ── 1. Lint / type-check ──────────────────────────────────────────────────────
+lint:
+  stage: test
+  before_script:
+    - cd sabai-bible
+    - npm ci --prefer-offline
+  script:
+    - npm run lint
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
+# ── 2. Build ──────────────────────────────────────────────────────────────────
+build:
+  stage: build
+  before_script:
+    - cd sabai-bible
+    - npm ci --prefer-offline
+  script:
+    # Inject Supabase env vars so Vite embeds them at build time
+    - |
+      cat > .env.production.local <<EOF
+      VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+      VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+      EOF
+    - npm run build
+  artifacts:
+    paths:
+      - sabai-bible/dist/
+    expire_in: 1 hour
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# ── 3a. Deploy preview (MR branches) ─────────────────────────────────────────
+deploy:preview:
+  stage: deploy
+  before_script:
+    - npm install -g vercel@latest
+  script:
+    - cd sabai-bible
+    - >
+      vercel
+      --token="${VERCEL_TOKEN}"
+      --yes
+      --no-wait
+      2>&1 | tee /tmp/vercel-preview.log
+    - grep -o 'https://[^ ]*\.vercel\.app' /tmp/vercel-preview.log | head -1
+  environment:
+    name: preview/$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  needs:
+    - build
+
+# ── 3b. Deploy production (main / master) ────────────────────────────────────
+deploy:production:
+  stage: deploy
+  before_script:
+    - npm install -g vercel@latest
+  script:
+    - cd sabai-bible
+    - >
+      vercel
+      --token="${VERCEL_TOKEN}"
+      --prod
+      --yes
+      2>&1 | tee /tmp/vercel-prod.log
+    - echo "Production URL:" && grep -o 'https://[^ ]*\.vercel\.app' /tmp/vercel-prod.log | head -1
+  environment:
+    name: production
+    url: $APP_URL
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"'
+  needs:
+    - build

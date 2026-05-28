@@ -1,0 +1,6 @@
+{
+  "name": "SabAI Bible",
+  "description": "Study the Bible with clarity, context, and AI. Ask questions, read Scripture, visualize Bible stories, create quizzes, generate audio/video learning content, follow study plans, and share insights with your community.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
