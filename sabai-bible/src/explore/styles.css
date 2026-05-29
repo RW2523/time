@@ -50,7 +50,8 @@ button { cursor: pointer; }
 .bjm-root {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--bg);
 }
 .app-shell { flex: 1; min-height: 0; display: flex; }
@@ -986,7 +987,7 @@ button { cursor: pointer; }
 .bjm-sidebar .events-panel {
   flex: 1;
   min-height: 0;
-  height: 100%;
+  height: auto !important;
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -995,7 +996,7 @@ button { cursor: pointer; }
 .bjm-sidebar .event-list {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: auto !important;
   overflow-x: hidden;
 }
 
