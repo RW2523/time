@@ -11,10 +11,10 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          leaflet: ['leaflet', 'react-leaflet'],
-          icons: ['lucide-react'],
+        manualChunks(id) {
+          if (id.includes('leaflet') || id.includes('react-leaflet')) return 'leaflet';
+          if (id.includes('lucide-react')) return 'icons';
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) return 'vendor';
         },
       },
     },
