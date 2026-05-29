@@ -57,11 +57,29 @@ function AppContent() {
         {/* 2. Expandable Product Promise + Feature Pillars */}
         <ProductFeatures onNotify={triggerToast} />
 
-        {/* 3. Live Bible Journey Map */}
+        {/* 3. AI Chat */}
+        <AIChatSection onNotify={triggerToast} />
+
+        {/* 4. Guided Study Plans */}
+        <StudyPlansSection onNotify={triggerToast} />
+
+        {/* 5. Community Feed */}
+        <CommunitySection onNotify={triggerToast} />
+
+        {/* 6. User Personas interactive sandbox */}
+        <UserPersonas onNotify={triggerToast} />
+
+        {/* 7. Trust */}
+        <TrustResponsibility />
+
+        {/* 8. Contact / Early Access */}
+        <ContactSection />
+
+        {/* 9. Live Bible Journey Map — explore the app */}
         <section
           id="map-section"
-          className={`relative py-20 px-4 sm:px-6 lg:px-8 transition-colors duration-500 ${
-            theme === 'dark' ? 'bg-[#060d1f]' : 'bg-stone-50'
+          className={`relative py-20 px-4 sm:px-6 lg:px-8 transition-colors duration-500 border-t ${
+            theme === 'dark' ? 'bg-[#060d1f] border-slate-800' : 'bg-stone-50 border-stone-200'
           }`}
         >
           <div className="max-w-7xl mx-auto">
@@ -78,13 +96,13 @@ function AppContent() {
               <h2 className={`text-3xl sm:text-4xl font-display font-black tracking-tight mb-3 ${
                 theme === 'dark' ? 'text-white' : 'text-stone-900'
               }`}>
-                Bible Journey Map
+                Explore the Bible Journey Map
               </h2>
               <p className={`text-sm max-w-xl mx-auto leading-relaxed ${
                 theme === 'dark' ? 'text-slate-400' : 'text-stone-500'
               }`}>
-                Trace 100+ biblical events on a live Leaflet map — filter by era, explore family lineages,
-                and play story narrations for each event.
+                A preview of what awaits you in the app. Trace 100+ biblical events on a live map —
+                filter by era, explore family lineages, and play story narrations for each event.
               </p>
 
               <div className={`inline-flex flex-wrap justify-center gap-0 divide-x rounded-2xl border overflow-hidden mt-6 ${
@@ -144,24 +162,6 @@ function AppContent() {
 
           </div>
         </section>
-
-        {/* 4. AI Chat */}
-        <AIChatSection onNotify={triggerToast} />
-
-        {/* 5. Guided Study Plans */}
-        <StudyPlansSection onNotify={triggerToast} />
-
-        {/* 6. Community Feed */}
-        <CommunitySection onNotify={triggerToast} />
-
-        {/* 7. User Personas interactive sandbox */}
-        <UserPersonas onNotify={triggerToast} />
-
-        {/* 8. Trust */}
-        <TrustResponsibility />
-
-        {/* 9. Contact / Early Access */}
-        <ContactSection />
 
       </main>
 
