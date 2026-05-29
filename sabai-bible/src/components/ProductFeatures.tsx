@@ -207,13 +207,6 @@ export default function ProductFeatures({ onNotify }: ProductFeaturesProps) {
 
         {/* Connector + 5-step pills */}
         <div className="relative max-w-4xl mx-auto mb-0">
-          {/* Horizontal connector line */}
-          <div className={`absolute top-[30px] left-[10%] right-[10%] h-[2px] hidden lg:block ${
-            theme === 'dark'
-              ? 'bg-gradient-to-r from-blue-500/20 via-indigo-400/20 to-emerald-400/20'
-              : 'bg-gradient-to-r from-blue-100 via-indigo-100 to-emerald-100'
-          }`} />
-
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 relative z-10">
             {steps.map(step => {
               const Icon = step.icon;
