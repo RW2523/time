@@ -44,7 +44,8 @@ body {
 button, input { font: inherit; }
 button { cursor: pointer; }
 
-.app-shell { min-height: 100vh; display: flex; }
+.bjm-root { display: flex; flex-direction: column; height: 100%; min-height: 100vh; background: var(--bg); }
+.app-shell { flex: 1; min-height: 0; display: flex; }
 .nav-rail {
   width: 72px;
   flex: 0 0 72px;
@@ -101,7 +102,7 @@ button { cursor: pointer; }
   height: auto;
   min-height: 72px;
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(260px, 420px) auto auto auto auto;
+  grid-template-columns: minmax(200px, 1fr) minmax(220px, 380px) auto auto auto;
   align-items: center;
   gap: 14px;
   padding-bottom: 18px;

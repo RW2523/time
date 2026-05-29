@@ -83,21 +83,6 @@ function roleForPerson(name, event) {
   return `Involved in ${event.title}`;
 }
 
-function NavRail({ workspace, onWorkspace }) {
-  return (
-    <aside className="nav-rail">
-      <div className="brand-mark"><BookOpen size={26} /></div>
-      <button type="button" title="Journey map"    className={workspace === 'journey'  ? 'active' : ''} onClick={() => onWorkspace('journey')}><Map size={20} /></button>
-      <button type="button" title="Bible Timeline" className={workspace === 'timeline' ? 'active' : ''} onClick={() => onWorkspace('timeline')}><CalendarDays size={20} /></button>
-      <button type="button" title="People"  onClick={() => onWorkspace('journey')}><Users    size={20} /></button>
-      <button type="button" title="Lineage" onClick={() => onWorkspace('journey')}><TreePine size={20} /></button>
-      <button type="button" title="Scripture" onClick={() => onWorkspace('journey')}><BookOpen size={20} /></button>
-      <div className="rail-spacer" />
-      <button type="button" title="Back to map" onClick={() => onWorkspace('journey')}><ChevronLeft size={22} /></button>
-    </aside>
-  );
-}
-
 function EventList({ events, selected, onSelect, query, setQuery, activeEra }) {
   const listRef = useRef(null);
   const filtered = useMemo(() => {
@@ -136,15 +121,32 @@ function EventList({ events, selected, onSelect, query, setQuery, activeEra }) {
   );
 }
 
-function TopBar({ storyMode, setStoryMode }) {
+function TopBar({ storyMode, setStoryMode, workspace, onWorkspace }) {
   return (
     <header className="topbar">
       <div><h1>Bible Journey Map</h1><span>Interactive atlas — real tiles, story markers, and journey routes</span></div>
       <div className="global-search"><Search size={18} /><input placeholder="Search events, people, places..." /></div>
-      <button className="top-button"><Filter size={16} /> Filters</button>
+      {/* Workspace toggle — Map vs Timeline */}
+      <div style={{ display: 'flex', gap: '6px' }}>
+        <button
+          type="button"
+          onClick={() => onWorkspace('journey')}
+          className={`top-button${workspace === 'journey' ? ' active' : ''}`}
+          style={{ gap: '6px' }}
+        >
+          <Map size={15} /> Map
+        </button>
+        <button
+          type="button"
+          onClick={() => onWorkspace('timeline')}
+          className={`top-button${workspace === 'timeline' ? ' active' : ''}`}
+          style={{ gap: '6px' }}
+        >
+          <CalendarDays size={15} /> Timeline
+        </button>
+      </div>
       <button onClick={() => setStoryMode(!storyMode)} className={`story-toggle ${storyMode ? 'on' : ''}`}>Story Mode <span /></button>
       <button className="icon-button"><Settings size={18} /></button>
-      <div className="avatar">JD</div>
     </header>
   );
 }
@@ -567,9 +569,8 @@ export default function BibleJourneyApp() {
   return (
     <div className="bjm-root">
       <div className="app-shell">
-        <NavRail workspace={workspace} onWorkspace={setWorkspace} />
         <div className="app-main">
-          <TopBar storyMode={storyMode} setStoryMode={setStoryMode} />
+          <TopBar storyMode={storyMode} setStoryMode={setStoryMode} workspace={workspace} onWorkspace={setWorkspace} />
           {import.meta.env.DEV && spriteDebug && <SpriteDebugGrid />}
           {lineageTreeOpen && (
             <LineageTreeModal open={lineageTreeOpen} onClose={() => { setLineageTreeOpen(false); setLineageTreeEntry('default'); }} tree={lineageTree} highlightNodeIds={lineageHighlightNodes} highlightEdgeIds={lineageHighlightEdges} targetPersonIds={lineageTargetIds} eventTitle={selected.title} selectedEventId={selected.id} entryMode={lineageTreeEntry} />
