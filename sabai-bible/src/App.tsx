@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { lazy, Suspense } from 'react';
+import React, { useState } from 'react';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import ProductFeatures from './components/ProductFeatures';
@@ -17,8 +17,6 @@ import Footer from './components/Footer';
 import { Map } from 'lucide-react';
 
 import { ThemeProvider, useTheme } from './ThemeContext';
-
-const BibleJourneyApp = lazy(() => import('./explore/BibleJourneyApp.jsx'));
 
 export default function App() {
   return (
@@ -39,6 +37,8 @@ function AppContent() {
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
   };
+
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   return (
     <div className={`relative min-h-screen transition-colors duration-500 overflow-x-hidden ${
@@ -128,11 +128,13 @@ function AppContent() {
               </div>
             </div>
 
-            <div className={`rounded-3xl border overflow-hidden ${
+            <div className={`relative rounded-3xl border overflow-hidden ${
               theme === 'dark' ? 'border-slate-800' : 'border-stone-200 shadow-sm'
             }`} style={{ height: '80vh', minHeight: 540 }}>
-              <Suspense fallback={
-                <div className={`w-full h-full flex flex-col items-center justify-center gap-4 ${
+
+              {/* Loading overlay — hidden once iframe fires onLoad */}
+              {!mapLoaded && (
+                <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 ${
                   theme === 'dark' ? 'bg-[#030a18]' : 'bg-stone-100'
                 }`}>
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
@@ -141,11 +143,9 @@ function AppContent() {
                     <Map className={`w-7 h-7 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`} />
                   </div>
                   <div className="text-center">
-                    <div className={`text-sm font-bold mb-2 ${
+                    <p className={`text-sm font-bold mb-2 ${
                       theme === 'dark' ? 'text-slate-300' : 'text-stone-600'
-                    }`}>
-                      Loading Bible Journey Map
-                    </div>
+                    }`}>Loading Bible Journey Map…</p>
                     <div className="flex items-center justify-center gap-1.5">
                       {[0, 150, 300].map(d => (
                         <span key={d}
@@ -155,9 +155,16 @@ function AppContent() {
                     </div>
                   </div>
                 </div>
-              }>
-                <BibleJourneyApp />
-              </Suspense>
+              )}
+
+              <iframe
+                src="/map"
+                title="Bible Journey Map"
+                onLoad={() => setMapLoaded(true)}
+                className="w-full h-full border-0"
+                allow="fullscreen"
+                loading="lazy"
+              />
             </div>
 
           </div>

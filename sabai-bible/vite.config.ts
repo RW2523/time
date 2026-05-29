@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
@@ -13,12 +13,17 @@ export default defineConfig(() => {
     },
     build: {
       rollupOptions: {
+        // Multi-page: main marketing site + standalone map page
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+          map:  path.resolve(__dirname, 'map.html'),
+        },
         output: {
           manualChunks: {
-            vendor: ['react', 'react-dom'],
-            motion: ['motion'],
+            vendor:   ['react', 'react-dom'],
+            motion:   ['motion'],
             supabase: ['@supabase/supabase-js'],
-            icons: ['lucide-react'],
+            icons:    ['lucide-react'],
           },
         },
       },
