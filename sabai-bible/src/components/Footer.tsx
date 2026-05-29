@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useTheme } from '../ThemeContext';
 import { Book, Mail, Globe, Smartphone, Clock } from 'lucide-react';
 
@@ -13,15 +13,6 @@ interface FooterProps {
 }
 
 function ComingSoonBanner({ theme, onNotify }: { theme: string; onNotify: (m: string) => void }) {
-  const [notified, setNotified] = useState(false);
-  const [email, setEmail] = useState('');
-
-  const handleNotify = () => {
-    if (!email.trim()) return;
-    setNotified(true);
-    onNotify('You will be notified at launch!');
-  };
-
   return (
     <div className={`p-8 sm:p-12 rounded-[24px] mb-16 relative overflow-hidden border shadow-xl ${
       theme === 'dark'
@@ -32,10 +23,10 @@ function ComingSoonBanner({ theme, onNotify }: { theme: string; onNotify: (m: st
       <div className="absolute -right-16 -top-16 w-56 h-56 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
       <div className="absolute -left-16 -bottom-16 w-56 h-56 bg-amber-500/8 rounded-full blur-[80px] pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col lg:flex-row justify-between items-center gap-10">
+      <div className="relative z-10">
 
-        {/* Left: copy + store badges */}
-        <div className="max-w-xl text-center lg:text-left">
+        {/* Copy + store badges — full width, centered */}
+        <div className="text-center">
           {/* Eye-catching label */}
           <span className={`inline-flex items-center gap-2 text-[9px] font-mono font-extrabold tracking-[4px] uppercase px-3 py-1.5 rounded-full border mb-5 ${
             theme === 'dark' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-blue-50 border-blue-200 text-blue-600'
@@ -53,7 +44,7 @@ function ComingSoonBanner({ theme, onNotify }: { theme: string; onNotify: (m: st
             </span>
           </h3>
 
-          <p className={`text-xs sm:text-sm leading-relaxed mb-6 ${
+          <p className={`text-xs sm:text-sm leading-relaxed mb-6 max-w-lg mx-auto ${
             theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
           }`}>
             We are launching on the App Store and Google Play — bringing the full power of
@@ -61,7 +52,7 @@ function ComingSoonBanner({ theme, onNotify }: { theme: string; onNotify: (m: st
           </p>
 
           {/* Verse */}
-          <blockquote className={`border-l-2 pl-4 mb-7 text-left ${
+          <blockquote className={`border-l-2 pl-4 mb-7 text-left max-w-md mx-auto ${
             theme === 'dark' ? 'border-amber-500/40' : 'border-blue-400/40'
           }`}>
             <p className={`text-xs italic leading-relaxed font-serif ${
@@ -78,7 +69,7 @@ function ComingSoonBanner({ theme, onNotify }: { theme: string; onNotify: (m: st
           </blockquote>
 
           {/* Store badge buttons */}
-          <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
+          <div className="flex flex-wrap gap-3 justify-center">
             <button
               onClick={() => onNotify('App Store launch coming soon!')}
               className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl border font-bold text-xs transition-all hover:scale-105 cursor-pointer ${
@@ -114,50 +105,6 @@ function ComingSoonBanner({ theme, onNotify }: { theme: string; onNotify: (m: st
           </div>
         </div>
 
-        {/* Right: notify me form */}
-        <div className={`w-full lg:w-72 shrink-0 p-6 rounded-2xl border ${
-          theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-white/80 border-stone-200 shadow-sm'
-        }`}>
-          {notified ? (
-            <div className="text-center py-4">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 ${
-                theme === 'dark' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
-              }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-              </div>
-              <p className={`text-xs font-extrabold font-display mb-1 ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>You are on the list!</p>
-              <p className={`text-[10px] font-mono ${theme === 'dark' ? 'text-slate-500' : 'text-stone-400'}`}>We will notify you the moment we launch.</p>
-            </div>
-          ) : (
-            <>
-              <p className={`text-sm font-extrabold font-display mb-1 ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>
-                Be the first to know.
-              </p>
-              <p className={`text-[10.5px] leading-relaxed mb-4 ${theme === 'dark' ? 'text-slate-400' : 'text-stone-500'}`}>
-                Drop your email and we will notify you the moment SabAI Bible lands in the stores.
-              </p>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                className={`w-full border rounded-xl px-3 py-2.5 text-xs mb-2.5 focus:outline-none transition-colors ${
-                  theme === 'dark' ? 'bg-slate-950 border-slate-800 text-white placeholder:text-slate-600' : 'bg-stone-50 border-stone-200 text-stone-900 placeholder:text-stone-400'
-                }`}
-              />
-              <button
-                onClick={handleNotify}
-                className={`w-full py-2.5 rounded-xl text-[10.5px] font-extrabold uppercase tracking-widest transition cursor-pointer ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white'
-                    : 'bg-[#0B192C] hover:bg-slate-800 text-white'
-                }`}
-              >
-                Notify Me at Launch
-              </button>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );

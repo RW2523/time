@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../ThemeContext';
-import {
+import { 
   ScrollText, GraduationCap, Gamepad2, Heart, Sparkles,
   CheckCircle2, Flame, Star, Trash2, Plus, Volume2, ArrowRight,
 } from 'lucide-react';
@@ -21,7 +21,7 @@ const personas: Record<PersonaId, {
   name: string; icon: React.ElementType; color: string; ringColor: string;
   tagline: string; features: string[];
 }> = {
-  pastor: {
+    pastor: {
     name: 'Pastor',
     icon: ScrollText,
     color: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
@@ -29,13 +29,13 @@ const personas: Record<PersonaId, {
     tagline: 'Compose sermons, scaffold outlines, and export pastoral handouts in minutes.',
     features: [
       'Sermon drafting workspace with rich outline compiler',
-      'One-click "Structure My Sermon" template engine',
+        'One-click "Structure My Sermon" template engine',
       'Resource cloud libraries (Drive, YouTube, PDF)',
       'Multi-format export — slide decks & PDF handouts',
     ],
-  },
-  teacher: {
-    name: 'Teaching Mentor',
+    },
+    teacher: {
+      name: 'Teaching Mentor',
     icon: GraduationCap,
     color: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
     ringColor: 'border-amber-500',
@@ -46,9 +46,9 @@ const personas: Record<PersonaId, {
       'Student progress indicators & insights dashboard',
       'Curated teaching asset library for mentoring events',
     ],
-  },
-  student: {
-    name: 'Student',
+    },
+    student: {
+      name: 'Student',
     icon: Gamepad2,
     color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
     ringColor: 'border-emerald-500',
@@ -59,8 +59,8 @@ const personas: Record<PersonaId, {
       'Kid-friendly illustrated narrative summaries',
       'Teacher-moderated safe peer discussion',
     ],
-  },
-  believer: {
+    },
+    believer: {
     name: 'Believer',
     icon: Heart,
     color: 'text-purple-500 bg-purple-500/10 border-purple-500/20',
@@ -71,8 +71,8 @@ const personas: Record<PersonaId, {
       'Real-time community highlights with safe reactions',
       'Professional narration text-to-speech audio player',
     ],
-  },
-  shared: {
+    },
+    shared: {
     name: 'Shared Core',
     icon: Sparkles,
     color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
@@ -437,10 +437,10 @@ export default function UserPersonas({ onNotify }: UserPersonasProps) {
               >
                 <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? p.color.split(' ')[0] : 'text-slate-400'}`} />
                 {p.name}
-              </button>
-            );
-          })}
-        </div>
+                  </button>
+                );
+              })}
+            </div>
 
         {/* Unified card */}
         <AnimatePresence mode="wait">
@@ -464,7 +464,7 @@ export default function UserPersonas({ onNotify }: UserPersonasProps) {
               <div>
                 <span className={`text-sm font-extrabold font-display ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                   {persona.name}
-                </span>
+              </span>
                 <span className={`block text-[10px] font-mono mt-0.5 ${theme === 'dark' ? 'text-slate-500' : 'text-stone-400'}`}>
                   {persona.tagline}
                 </span>
@@ -480,7 +480,7 @@ export default function UserPersonas({ onNotify }: UserPersonasProps) {
                   theme === 'dark' ? 'text-slate-500' : 'text-stone-400'
                 }`}>
                   {active === 'shared' ? 'Shared Core Stack' : 'Exclusive Functions'}
-                </span>
+              </span>
                 <div className="space-y-2.5">
                   {persona.features.map((feat, i) => (
                     <div key={i} className={`flex items-start gap-3 p-3 rounded-2xl border transition-colors ${
@@ -495,8 +495,8 @@ export default function UserPersonas({ onNotify }: UserPersonasProps) {
                     </div>
                   ))}
                 </div>
-              </div>
-
+                        </div>
+                        
               {/* Right: live sandbox */}
               <div className={`p-6 ${theme === 'dark' ? 'bg-[#030a18]' : 'bg-stone-50/60'}`}>
                 <span className={`text-[9px] font-mono font-extrabold uppercase tracking-widest block mb-4 ${
@@ -505,7 +505,7 @@ export default function UserPersonas({ onNotify }: UserPersonasProps) {
                   Live Sandbox
                 </span>
                 {sandbox[active]}
-              </div>
+                  </div>
 
             </div>
           </motion.div>
