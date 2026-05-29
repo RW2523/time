@@ -1,10 +1,11 @@
 {
-  "buildCommand": "cd sabai-bible && npm ci && npm run build",
+  "buildCommand": "npm install --prefix . && cd sabai-bible && npm ci && npm run build",
   "outputDirectory": "sabai-bible/dist",
-  "installCommand": "cd sabai-bible && npm ci",
+  "installCommand": "npm install --prefix . && cd sabai-bible && npm ci",
   "rewrites": [
-    { "source": "/map",                    "destination": "/map.html"   },
-    { "source": "/((?!.*\\.\\w{2,5}$).*)", "destination": "/index.html" }
+    { "source": "/map",                           "destination": "/map.html"   },
+    { "source": "/api/(.*)",                      "destination": "/api/$1"     },
+    { "source": "/((?!api/)(?!.*\\.\\w{2,5}$).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

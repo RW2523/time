@@ -402,33 +402,6 @@ function PeoplePanel({ selected }) {
 
 /* ── Story Panel ─────────────────────────────────────────────── */
 function StoryPanel(props) {
-  if (!props.apiBase) {
-    return (
-      <div className="story-api-state">
-        <div className="story-api-state__icon" aria-hidden>🎬</div>
-        <h3>AI Story Video</h3>
-        <p>Connect the Gemini backend to generate illustrated scenes and professional narration for any Bible event.</p>
-        <ul className="story-api-state__steps">
-          <li>
-            <span>1</span>
-            <div>Deploy the SabAI Bible backend server (see <code>README.md</code>)</div>
-          </li>
-          <li>
-            <span>2</span>
-            <div>Add <code>VITE_API_BASE=https://your-api.com</code> to <code>.env</code> and rebuild</div>
-          </li>
-          <li>
-            <span>3</span>
-            <div>Configure your Google Gemini API key on the server</div>
-          </li>
-        </ul>
-        <div className="story-api-state__note">
-          <Server size={14} aria-hidden />
-          All other features — Map, Timeline, Event Info, Family Tree, People — work fully offline without any API.
-        </div>
-      </div>
-    );
-  }
   if (props.storyError) {
     return (
       <div className="story-api-state">
@@ -479,9 +452,10 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cacheBanner, on
     return () => clearInterval(timer);
   }, [story, setSceneIndex]);
 
-  const audioSrc = story?.audioUrl ? `${apiBase}${story.audioUrl}` : null;
+  const resolveUrl = (url) => (!url ? null : (url.startsWith('data:') || url.startsWith('http') ? url : `${apiBase}${url}`));
+  const audioSrc = resolveUrl(story?.audioUrl);
   const scene  = story?.scenes?.[sceneIndex];
-  const imgSrc = scene?.imageUrl ? `${apiBase}${scene.imageUrl}` : null;
+  const imgSrc = resolveUrl(scene?.imageUrl);
 
   const toggle = async () => {
     if (!audioRef.current || !audioSrc) return;
