@@ -422,7 +422,7 @@ function StoryPanel(props) {
 }
 
 /* ── Story Player (full) ─────────────────────────────────────── */
-function StoryPlayer({ story, loading, onGenerate, onRegenerate, cacheBanner, onLoadCachedInline, onOpenReplaceModal, onDismissCacheBanner, audioRef, playing, setPlaying, sceneIndex, setSceneIndex, apiBase, sectionRef, exportEventId }) {
+function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBanner, onLoadCachedInline, onOpenReplaceModal, onDismissCacheBanner, audioRef, playing, setPlaying, sceneIndex, setSceneIndex, apiBase, sectionRef, exportEventId }) {
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const [videoCinema, setVideoCinema]     = useState(false);
@@ -520,7 +520,10 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cacheBanner, on
       <div className="player-toolbar">
         <div className="player-left">
           <div className="player-icon"><Sparkles size={22} aria-hidden /></div>
-          <div><h3>AI Story Video</h3><p>Gemini builds illustrated scenes and narration.</p></div>
+          <div>
+            <h3>AI Story Video {cached && <span className="story-cached-badge" title="Loaded from Supabase">✓ Saved</span>}</h3>
+            <p>Gemini builds illustrated scenes and narration.</p>
+          </div>
         </div>
         {story ? (
           <div className="player-actions">
@@ -636,6 +639,7 @@ export default function BibleJourneyApp() {
   const [storyCacheModal, setStoryCacheModal] = useState(null);
   const [storyCacheBanner, setStoryCacheBanner] = useState(null);
   const [storyError, setStoryError] = useState(null);
+  const [storyCached, setStoryCached] = useState(false);
   const [mapPopupDismissNonce, setMapPopupDismissNonce] = useState(0);
   const [timelineScrollPulse, setTimelineScrollPulse]   = useState(0);
   const [listSelectSignal, setListSelectSignal]         = useState(0);
@@ -686,15 +690,27 @@ export default function BibleJourneyApp() {
   useEffect(() => {
     setContent(null); setStory(null); setSceneIndex(0); setPlaying(false);
     setStoryCacheModal(null); setStoryCacheBanner(null); setStoryError(null);
-    if (!API_BASE) return;
+    setStoryCached(false);
+
     const ac = new AbortController();
     (async () => {
       try {
-        const r = await fetch(`${API_BASE}/api/events/${selectedId}/story/meta`, { signal: ac.signal });
-        if (!r.ok) return;
-        const meta = await r.json();
-        if (!ac.signal.aborted && meta.cached) setStoryCacheModal(meta);
-      } catch { /* silent */ }
+        // Check if story is cached in Supabase
+        const metaUrl = `${API_BASE}/api/events/${selectedId}/story/meta`;
+        const metaRes = await fetch(metaUrl, { signal: ac.signal });
+        if (!metaRes.ok || ac.signal.aborted) return;
+        const meta = await metaRes.json();
+        if (!meta.cached || ac.signal.aborted) return;
+
+        // Auto-load the cached story silently
+        setStoryLoading(true);
+        const storyRes = await fetch(`${API_BASE}/api/events/${selectedId}/story`, { signal: ac.signal });
+        if (!storyRes.ok || ac.signal.aborted) return;
+        const data = await storyRes.json();
+        if (data.error || ac.signal.aborted) return;
+        setStory(data); setSceneIndex(0); setStoryCached(true);
+      } catch { /* silent — user can still generate manually */ }
+      finally { if (!ac.signal.aborted) setStoryLoading(false); }
     })();
     return () => ac.abort();
   }, [selectedId]);
@@ -707,7 +723,7 @@ export default function BibleJourneyApp() {
       const data = await r.json();
       if (data.error) throw new Error(data.error);
       setStory(data); setSceneIndex(0); setStoryCacheModal(null); setStoryCacheBanner(null);
-      setActiveTab('story');
+      setStoryCached(true); setActiveTab('story');
     } catch (err) {
       setStoryError(err.message || 'Load failed. Please try again.');
       setActiveTab('story');
@@ -738,20 +754,23 @@ export default function BibleJourneyApp() {
   };
 
   const generateStory = async ({ force = false } = {}) => {
-    setStoryLoading(true); setStoryError(null);
+    setStoryLoading(true); setStoryError(null); setStoryCached(false);
     try {
       const r = await fetch(`${API_BASE}/api/events/${selected.id}/story`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sceneCount: 4, force })
       });
-      if (!r.ok) throw new Error(`Server returned ${r.status}. Check that your backend is running.`);
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.error || `Server returned ${r.status}.`);
+      }
       const data = await r.json();
       if (data.error) throw new Error(data.error);
       setStory(data); setSceneIndex(0); setStoryCacheModal(null); setStoryCacheBanner(null);
-      setActiveTab('story');
+      setStoryCached(Boolean(data._cached)); setActiveTab('story');
     } catch (err) {
       const msg = err.name === 'TypeError'
-        ? 'Could not reach the story server. Check your internet connection and API URL.'
+        ? 'Could not reach the story server. Check your internet connection.'
         : (err.message || 'Story generation failed. Please try again.');
       setStoryError(msg);
       setActiveTab('story');
@@ -838,6 +857,7 @@ export default function BibleJourneyApp() {
                 <div className="bjm-tab-content bjm-tab-content--scroll">
                   <StoryPanel apiBase={API_BASE} story={story} loading={storyLoading}
                     storyError={storyError} onClearError={() => setStoryError(null)}
+                    cached={storyCached}
                     onGenerate={() => generateStory()} onRegenerate={() => generateStory({ force: true })}
                     cacheBanner={!story && !storyError && storyCacheBanner && storyCacheBanner.eventId === selectedId ? storyCacheBanner : null}
                     onLoadCachedInline={loadCachedStory}

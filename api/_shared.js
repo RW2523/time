@@ -4,28 +4,44 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { GoogleGenAI } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
 
+// ── Models ────────────────────────────────────────────────────────────────────
 export const TEXT_MODEL  = process.env.GEMINI_TEXT_MODEL  || 'gemini-2.5-flash';
 export const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp-image-generation';
 export const TTS_MODEL   = process.env.GEMINI_TTS_MODEL   || 'gemini-2.5-flash-preview-tts';
 export const TTS_VOICE   = process.env.GEMINI_TTS_VOICE   || 'Kore';
 
+// ── Gemini client ─────────────────────────────────────────────────────────────
 export function getAI() {
   if (!process.env.GEMINI_API_KEY) return null;
   return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 }
 
+// ── Supabase client ───────────────────────────────────────────────────────────
+export function getSupabase() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY
+           || process.env.SUPABASE_ANON_KEY
+           || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+// ── Data ──────────────────────────────────────────────────────────────────────
 export async function loadEvents() {
   const p = path.join(process.cwd(), 'sabai-bible', 'src', 'explore', 'data', 'bibleEvents.json');
   return JSON.parse(await readFile(p, 'utf-8'));
 }
 
+// ── HTTP helpers ──────────────────────────────────────────────────────────────
 export function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+// ── Gemini helpers ────────────────────────────────────────────────────────────
 export function getText(response) {
   if (response?.text) return response.text;
   const parts = response?.candidates?.[0]?.content?.parts || response?.parts || [];
@@ -63,6 +79,7 @@ export async function withRetry(fn, label, { maxAttempts = 4, baseMs = 800 } = {
   throw last;
 }
 
+// ── Audio helpers ─────────────────────────────────────────────────────────────
 export function buildWav(pcm, { channels = 1, sampleRate = 24000, bitsPerSample = 16 } = {}) {
   const byteRate   = (sampleRate * channels * bitsPerSample) / 8;
   const blockAlign = (channels * bitsPerSample) / 8;
@@ -79,16 +96,14 @@ export function buildWav(pcm, { channels = 1, sampleRate = 24000, bitsPerSample 
   return buf;
 }
 
+// ── Placeholder SVG ───────────────────────────────────────────────────────────
 export function placeholderSvgDataUrl(title, subtitle, index) {
   const esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const gId = `g${index}`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
-<defs>
-  <linearGradient id="${gId}" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#0f4a4a"/><stop offset="0.45" stop-color="#c99a36"/><stop offset="1" stop-color="#f6ead3"/>
-  </linearGradient>
-</defs>
-<rect width="1280" height="720" fill="url(#${gId})"/>
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#0f4a4a"/><stop offset="0.45" stop-color="#c99a36"/><stop offset="1" stop-color="#f6ead3"/>
+</linearGradient></defs>
+<rect width="1280" height="720" fill="url(#g)"/>
 <path d="M0 590 C210 510 360 635 540 560 C740 470 865 610 1280 510 L1280 720 L0 720 Z" fill="#2e625c" opacity="0.55"/>
 <rect x="140" y="150" width="1000" height="420" rx="34" fill="#fff9eb" opacity="0.94"/>
 <text x="640" y="285" text-anchor="middle" font-family="Georgia,serif" font-size="54" fill="#103f3f" font-weight="700">${esc(title)}</text>

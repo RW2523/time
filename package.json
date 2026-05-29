@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@google/genai": "latest",
+    "@supabase/supabase-js": "^2.106.2",
     "@vitejs/plugin-react": "latest",
     "concurrently": "latest",
     "cors": "latest",
