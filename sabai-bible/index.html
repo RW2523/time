@@ -3,11 +3,126 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <title>SabAI Bible — Journey Maps &amp; Timelines</title>
+    <meta name="description" content="Explore Bible journeys on interactive maps, historical timelines, and AI-powered theological insights." />
+    <style>
+      /* ── Splash screen shown while React JS loads ─────────────────── */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #0B192C;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+      }
+      #app-splash.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .splash-logo {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #f59e0b, #ca8a04);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 40px rgba(245, 158, 11, 0.35);
+        animation: splash-pulse 1.8s ease-in-out infinite;
+      }
+      .splash-logo svg {
+        width: 28px;
+        height: 28px;
+        stroke: #0B192C;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .splash-title {
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 18px;
+        font-weight: 800;
+        color: #f1f5f9;
+        letter-spacing: -0.02em;
+      }
+      .splash-subtitle {
+        font-family: 'Courier New', monospace;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+      .splash-dots {
+        display: flex;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .splash-dots span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #ca8a04;
+        animation: splash-bounce 1.4s ease-in-out infinite;
+      }
+      .splash-dots span:nth-child(2) { animation-delay: 0.18s; }
+      .splash-dots span:nth-child(3) { animation-delay: 0.36s; }
+
+      @keyframes splash-pulse {
+        0%, 100% { transform: scale(1);    box-shadow: 0 0 40px rgba(245,158,11,0.35); }
+        50%       { transform: scale(1.06); box-shadow: 0 0 60px rgba(245,158,11,0.55); }
+      }
+      @keyframes splash-bounce {
+        0%, 80%, 100% { transform: translateY(0);   opacity: 0.4; }
+        40%            { transform: translateY(-8px); opacity: 1;   }
+      }
+    </style>
   </head>
   <body>
+    <!-- Splash shown before React mounts -->
+    <div id="app-splash">
+      <div class="splash-logo">
+        <!-- Book-open icon -->
+        <svg viewBox="0 0 24 24">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+      </div>
+      <div>
+        <p class="splash-title">SabAI Bible</p>
+        <p class="splash-subtitle">Journey Maps &amp; Timelines</p>
+      </div>
+      <div class="splash-dots">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Remove splash once React has painted the first frame
+      document.addEventListener('DOMContentLoaded', function () {
+        var root = document.getElementById('root');
+        var splash = document.getElementById('app-splash');
+        if (!splash) return;
+        var observer = new MutationObserver(function () {
+          if (root && root.children.length > 0) {
+            splash.classList.add('hidden');
+            // Remove from DOM after transition
+            setTimeout(function () { splash.remove(); }, 500);
+            observer.disconnect();
+          }
+        });
+        observer.observe(root, { childList: true });
+        // Fallback: remove after 5 seconds no matter what
+        setTimeout(function () { splash.classList.add('hidden'); }, 5000);
+      });
+    </script>
   </body>
 </html>
-
