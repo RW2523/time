@@ -5,18 +5,19 @@
 
 import React from 'react';
 import { useTheme } from '../ThemeContext';
-import { Book, ChevronRight, Mail, Globe, Sparkles } from 'lucide-react';
+import { Book, ChevronRight, Mail, Globe, MapPin } from 'lucide-react';
 
 interface FooterProps {
   onNotify: (msg: string) => void;
+  onLaunchMap: () => void;
 }
 
-export default function Footer({ onNotify }: FooterProps) {
+export default function Footer({ onNotify, onLaunchMap }: FooterProps) {
   const currentYear = new Date().getFullYear();
   const { theme } = useTheme();
 
   const handleLinkClick = (name: string) => {
-    onNotify(`Simulated navigation to page: ${name}`);
+    onNotify(`Navigating to: ${name}`);
   };
 
   return (
@@ -62,24 +63,25 @@ export default function Footer({ onNotify }: FooterProps) {
 
           <div className="flex flex-wrap items-center gap-3.5 shrink-0 relative z-10">
             <button
-              onClick={() => onNotify("Initiating watch preview flows...")}
-              className={`px-5 py-3.5 font-extrabold rounded-xl text-[10.5px] uppercase tracking-wider transition cursor-pointer border ${
+              onClick={onLaunchMap}
+              className={`px-5 py-3.5 font-extrabold rounded-xl text-[10.5px] uppercase tracking-wider transition cursor-pointer border flex items-center gap-1.5 ${
                 theme === 'dark'
                   ? 'bg-slate-900 hover:bg-slate-850 text-slate-300 border-slate-800'
                   : 'bg-white hover:bg-stone-50 text-slate-700 border-slate-200/60 shadow-2xs'
               }`}
             >
-              Watch Preview Video
+              <MapPin className="w-3.5 h-3.5" />
+              Explore Bible Maps
             </button>
             <button
-              onClick={() => onNotify("Launching SabAI Bible Try Experience flow...")}
+              onClick={onLaunchMap}
               className={`px-6 py-3.5 font-extrabold rounded-xl text-[10.5px] uppercase tracking-widest shadow-md hover:shadow-lg transition flex items-center gap-1 cursor-pointer ${
                 theme === 'dark'
                   ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-450 hover:to-indigo-500 text-white'
                   : 'bg-[#0B192C] hover:bg-slate-900 text-white'
               }`}
             >
-              Try SabAI Bible Free
+              Launch Bible Journey Map
               <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
           </div>
