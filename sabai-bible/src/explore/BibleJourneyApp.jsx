@@ -153,7 +153,6 @@ function TopBar({ storyMode, setStoryMode, workspace, onWorkspace }) {
 /* ── Tab Bar ─────────────────────────────────────────────────── */
 function TabBar({ activeTab, setActiveTab, selected }) {
   const tabs = [
-    { id: 'map',    icon: <Map size={14} />,       label: 'Map'    },
     { id: 'info',   icon: <BookOpen size={14} />,  label: 'Info'   },
     { id: 'family', icon: <TreePine size={14} />,  label: 'Family' },
     { id: 'people', icon: <Users size={14} />,     label: 'People' },
@@ -668,7 +667,7 @@ export default function BibleJourneyApp() {
   const [listSelectSignal, setListSelectSignal]         = useState(0);
   const [spriteDebug, setSpriteDebug]         = useState(false);
   const [workspace, setWorkspace]             = useState('journey');
-  const [activeTab, setActiveTab]             = useState('map');
+  const [activeTab, setActiveTab]             = useState('info');
 
   const audioRef       = useRef(null);
   const storyPlayerRef = useRef(null);
@@ -683,17 +682,15 @@ export default function BibleJourneyApp() {
   }, []);
   const handleSelectFromSidebar = useCallback((id) => {
     setMapPopupDismissNonce((n) => n + 1); setListSelectSignal((n) => n + 1); setSelectedId(id);
-    setActiveTab('map');
   }, []);
   const handleFocusEventInTimeline = useCallback((eventId) => {
     const ev = events.find((e) => e.id === eventId);
     const match = timelineMatchFromEventEra(ev?.era);
     setMapPopupDismissNonce((n) => n + 1); setListSelectSignal((n) => n + 1);
     setSelectedId(eventId); setActiveEra(match ?? 'All'); setTimelineScrollPulse((n) => n + 1);
-    setActiveTab('map');
   }, [events]);
   const handleTimelineOpenMap = useCallback((id) => {
-    if (!id) return; setSelectedId(id); setWorkspace('journey'); setActiveTab('map');
+    if (!id) return; setSelectedId(id); setWorkspace('journey');
   }, []);
   const handleTimelineOpenLineage = useCallback((id) => {
     if (!id) return; setSelectedId(id); setLineageTreeEntry('default'); setLineageTreeOpen(true); setWorkspace('journey');
@@ -824,20 +821,20 @@ export default function BibleJourneyApp() {
                 query={query} setQuery={setQuery} activeEra={activeEra} />
             </aside>
 
-            {/* Right canvas: tabs + content */}
+            {/* Right canvas: small map + tabs + content */}
             <div className="bjm-canvas">
-              <TabBar activeTab={activeTab} setActiveTab={setActiveTab} selected={selected} />
 
-              {/* Map tab */}
-              {activeTab === 'map' && (
-                <div className="bjm-tab-content bjm-tab-content--map">
-                  <JourneyMap events={events} selected={selected} activeEra={activeEra}
-                    onSelect={handleSelectFromMap} onFocusInTimeline={handleFocusEventInTimeline}
-                    listSelectSignal={listSelectSignal} story={story} sceneIndex={sceneIndex}
-                    apiBase={API_BASE} mapPopupDismissNonce={mapPopupDismissNonce} />
-                  <Timeline activeEra={activeEra} setActiveEra={setActiveEra} scrollFocusPulse={timelineScrollPulse} />
-                </div>
-              )}
+              {/* Persistent small map */}
+              <div className="bjm-map-strip">
+                <JourneyMap events={events} selected={selected} activeEra={activeEra}
+                  onSelect={handleSelectFromMap} onFocusInTimeline={handleFocusEventInTimeline}
+                  listSelectSignal={listSelectSignal} story={story} sceneIndex={sceneIndex}
+                  apiBase={API_BASE} mapPopupDismissNonce={mapPopupDismissNonce} />
+                <Timeline activeEra={activeEra} setActiveEra={setActiveEra} scrollFocusPulse={timelineScrollPulse} />
+              </div>
+
+              {/* Tab bar */}
+              <TabBar activeTab={activeTab} setActiveTab={setActiveTab} selected={selected} />
 
               {/* Info tab */}
               {activeTab === 'info' && (
