@@ -134,8 +134,16 @@ async function saveToSupabase(sb, event, manifest) {
       mode:         manifest.mode || 'gemini',
       generated_at: manifest.generatedAt
     }, { onConflict: 'event_id' });
-    if (error) console.error('[supabase] save error:', error.message);
-    else console.log(`[supabase] saved story for ${event.id}`);
+    if (error) {
+      const msg = error.message || String(error);
+      if (/relation.*does not exist|does not exist|Invalid path/i.test(msg)) {
+        console.error('[supabase] story_cache table not found. Run supabase/migrations/002_story_cache.sql in your Supabase SQL Editor.');
+      } else {
+        console.error('[supabase] save error:', msg);
+      }
+    } else {
+      console.log(`[supabase] saved story for ${event.id}`);
+    }
   } catch (e) {
     console.error('[supabase] save exception:', e.message);
   }

@@ -20,12 +20,20 @@ export function getAI() {
 
 // ── Supabase client ───────────────────────────────────────────────────────────
 export function getSupabase() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_KEY
            || process.env.SUPABASE_ANON_KEY
-           || process.env.VITE_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { persistSession: false } });
+           || process.env.VITE_SUPABASE_ANON_KEY
+           || '';
+  // Require a properly-formed Supabase project URL (https://<project>.supabase.co)
+  const validUrl = url && /^https:\/\/[a-z0-9]+\.supabase\.co/.test(url.trim());
+  if (!validUrl || !key) {
+    if (url && !validUrl) {
+      console.warn('[supabase] SUPABASE_URL looks invalid — expected https://<project>.supabase.co. Skipping Supabase.');
+    }
+    return null;
+  }
+  return createClient(url.trim(), key.trim(), { auth: { persistSession: false } });
 }
 
 // ── Data ──────────────────────────────────────────────────────────────────────
