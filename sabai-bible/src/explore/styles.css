@@ -641,6 +641,13 @@ button { cursor: pointer; }
 }
 .story-video-player__overlay-btns button:hover { background: rgba(0,0,0,0.8); }
 
+/* ── Video unsupported notice ─────────────────────────────────── */
+.story-video-unsupported {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: rgba(255,255,255,0.45);
+  padding: 0 8px; white-space: nowrap;
+}
+
 /* ── Video progress bar ───────────────────────────────────────── */
 .story-video-progress {
   display: flex; align-items: center; gap: 10px;

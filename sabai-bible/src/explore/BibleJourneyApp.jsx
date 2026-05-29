@@ -23,7 +23,7 @@ import { buildLineageIndex, matchEventToLineagePersonIds } from './lib/lineageMa
 import { highlightEdgesForNodes, highlightNodesForTargets } from './lib/lineagePath.js';
 import { getPersonPerspectiveEntry } from './lib/eventPersonPerspective.js';
 import { timelineMatchFromEventEra } from './lib/timelineEra.js';
-import { makeStoryVideo, downloadBlob, saveVideoLocally, loadVideoLocally } from './utils/makeStoryVideo.js';
+import { makeStoryVideo, downloadBlob, saveVideoLocally, loadVideoLocally, isVideoSupported, estimateVideoDuration } from './utils/makeStoryVideo.js';
 import {
   BookOpen, CalendarDays, ChevronLeft, ChevronRight, Download,
   Filter, Film, GitBranch, HardDrive, Loader2, Map, MapPin, Maximize2,
@@ -435,6 +435,8 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
   const [videoExt,      setVideoExt]      = useState('webm');
   const videoRef = useRef(null);
 
+  const videoSupported = isVideoSupported();
+
   // Load saved video from IndexedDB when event changes
   useEffect(() => {
     setVideoUrl(null); setVideoStatus('idle'); setVideoProgress(0);
@@ -569,13 +571,21 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
           {videoStatus === 'making' && (
             <div className="story-video-progress">
               <Loader2 size={18} className="spin" />
-              <span>Creating video… {videoProgress}%</span>
-              <div className="story-video-progress__bar"><div style={{ width: `${videoProgress}%` }} /></div>
+              <div style={{ flex: 1 }}>
+                <span>Rendering video… {videoProgress}% &nbsp;
+                  {story && videoProgress < 10 && (
+                    <span style={{ opacity: 0.7 }}>
+                      (~{estimateVideoDuration(story)}s — keep this tab open)
+                    </span>
+                  )}
+                </span>
+                <div className="story-video-progress__bar"><div style={{ width: `${videoProgress}%` }} /></div>
+              </div>
             </div>
           )}
           {videoStatus === 'error' && (
             <div className="story-video-progress story-video-progress--error">
-              Video creation failed — try again
+              Video creation failed — check browser console, then try again
             </div>
           )}
           <div className="story-theater__scenes">
@@ -620,10 +630,15 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
             )}
 
             {/* Create video button */}
-            {videoStatus === 'idle' || videoStatus === 'error' ? (
+            {!videoSupported ? (
+              <span className="story-video-unsupported" title="Use Chrome or Edge for video generation">
+                <Film size={15} /> Video: use Chrome/Edge
+              </span>
+            ) : videoStatus === 'idle' || videoStatus === 'error' ? (
               <button type="button" className="primary story-make-video-btn"
-                onClick={handleMakeVideo} disabled={loading || videoStatus === 'making'}>
-                <Film size={15} /> Create MP4 video
+                onClick={handleMakeVideo} disabled={loading || videoStatus === 'making'}
+                title={`Renders a ~${estimateVideoDuration(story)}s video — keep this tab visible`}>
+                <Film size={15} /> Create video (~{estimateVideoDuration(story)}s)
               </button>
             ) : videoStatus === 'making' ? (
               <button type="button" className="primary story-make-video-btn" disabled>

@@ -19,6 +19,7 @@ function loadImg(dataUrl) {
     const img = new Image();
     img.onload  = () => resolve(img);
     img.onerror = () => resolve(null);
+    img.crossOrigin = 'anonymous';
     img.src = dataUrl;
   });
 }
@@ -214,13 +215,36 @@ function bestMime() {
   return 'video/webm';
 }
 
+// ── Capability check ─────────────────────────────────────────────────────────
+export function isVideoSupported() {
+  try {
+    const c = document.createElement('canvas');
+    return (
+      typeof MediaRecorder !== 'undefined' &&
+      typeof c.captureStream === 'function'
+    );
+  } catch { return false; }
+}
+
+// ── Total duration helper ─────────────────────────────────────────────────────
+export function estimateVideoDuration(story) {
+  const rawDurs  = (story?.scenes || []).map((s) => Number(s.durationSec) || 7);
+  const sceneSec = rawDurs.reduce((a, b) => a + b, 0);
+  return Math.ceil(INTRO_S + sceneSec + OUTRO_S);
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 /**
- * @param {object} story   – the story manifest from the API
+ * @param {object}   story      – the story manifest from the API
  * @param {function} onProgress – called with 0..1
  * @returns {Promise<Blob>}
  */
 export async function makeStoryVideo(story, onProgress) {
+  // 0. Capability check
+  if (!isVideoSupported()) {
+    throw new Error('Your browser does not support canvas video capture (MediaRecorder / captureStream). Try Chrome or Edge.');
+  }
+
   // 1. Load images
   onProgress?.(0.02);
   const images = await Promise.all((story.scenes || []).map((s) => loadImg(s.imageUrl)));
@@ -279,32 +303,73 @@ export async function makeStoryVideo(story, onProgress) {
   recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
   return new Promise((resolve, reject) => {
-    recorder.onstop = () => {
+    let settled = false;
+    const settle = (fn) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(safetyTimer);
       audioCtx.close();
-      const ext  = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
-      const blob = new Blob(chunks, { type: mimeType });
-      blob._ext  = ext;
-      resolve(blob);
+      fn();
     };
-    recorder.onerror = reject;
+
+    recorder.onstop = () => {
+      settle(() => {
+        const ext  = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+        const blob = new Blob(chunks, { type: mimeType });
+        blob._ext  = ext;
+        resolve(blob);
+      });
+    };
+    recorder.onerror = (e) => settle(() => reject(new Error(e?.error?.message || 'MediaRecorder error')));
+
+    // Safety net: force-stop after totalDur + 10 seconds regardless of animation state
+    // This ensures the video always completes even if the tab is backgrounded
+    const safetyTimer = setTimeout(() => {
+      console.warn('[video] safety timeout fired — stopping recorder');
+      if (recorder.state !== 'inactive') recorder.stop();
+    }, (totalDur + 10) * 1000);
 
     recorder.start(500); // collect data every 500ms
 
     const startWall = performance.now();
-    let lastScene = -1;
+
+    // Use both requestAnimationFrame AND a setInterval fallback so that
+    // rendering continues even when the tab is not visible.
+    // (rAF freezes in background tabs; setInterval still fires, throttled to ~1s)
+    let lastTickTime = -1;
 
     function tick() {
       const elapsed = (performance.now() - startWall) / 1000;
+      if (elapsed === lastTickTime) return; // deduplicate if both rAF and interval fire
+      lastTickTime = elapsed;
 
       drawFrame(ctx2d, { elapsed, totalDur, segments }, story, images);
       onProgress?.(0.1 + 0.88 * clamp(elapsed / totalDur, 0, 1));
 
       if (elapsed >= totalDur + 0.3) {
-        recorder.stop();
+        if (recorder.state !== 'inactive') recorder.stop();
       } else {
         requestAnimationFrame(tick);
       }
     }
+
+    // setInterval fires even in background tabs (Chrome throttles to ~1fps, still works)
+    const bgInterval = setInterval(() => {
+      const elapsed = (performance.now() - startWall) / 1000;
+      drawFrame(ctx2d, { elapsed, totalDur, segments }, story, images);
+      onProgress?.(0.1 + 0.88 * clamp(elapsed / totalDur, 0, 1));
+      if (elapsed >= totalDur + 0.3) {
+        clearInterval(bgInterval);
+        if (recorder.state !== 'inactive') recorder.stop();
+      }
+    }, 1000); // once per second fallback to keep canvas updating in background
+
+    // Clean up interval when recorder stops
+    const origOnStop = recorder.onstop;
+    recorder.onstop = (e) => {
+      clearInterval(bgInterval);
+      origOnStop(e);
+    };
 
     requestAnimationFrame(tick);
   });
