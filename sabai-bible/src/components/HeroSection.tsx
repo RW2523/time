@@ -6,22 +6,19 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { useTheme } from '../ThemeContext';
-import { MessageSquare, Sparkles, Map, BookOpen, Compass } from 'lucide-react';
+import { MessageSquare, Sparkles, Map, BookOpen, MapPin } from 'lucide-react';
 
 interface HeroSectionProps {
   onNotify: (msg: string) => void;
+  onLaunchMap: () => void;
 }
 
-export default function HeroSection({ onNotify }: HeroSectionProps) {
+export default function HeroSection({ onNotify, onLaunchMap }: HeroSectionProps) {
   const { theme } = useTheme();
 
-  const handleCTA = (label: string) => {
-    onNotify(`Accessing ${label} flow...`);
-    const target = label === 'Features' ? 'features' : 'try-experience';
-    const element = document.getElementById(target);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+  const scrollToFeatures = () => {
+    const el = document.getElementById('features');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
@@ -77,18 +74,21 @@ export default function HeroSection({ onNotify }: HeroSectionProps) {
 
             {/* Actions */}
             <div className="flex flex-col sm:flex-row items-center gap-3.5 w-full sm:w-auto">
+              {/* PRIMARY: Launch the map app */}
               <button
-                onClick={() => handleCTA('Experience')}
-                className={`w-full sm:w-auto px-7 py-3.5 rounded-xl text-xs font-extrabold uppercase tracking-widest shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer ${
+                onClick={onLaunchMap}
+                className={`w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-xs font-extrabold uppercase tracking-widest shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer ${
                   theme === 'dark'
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-450 hover:to-indigo-500 text-white'
+                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-350 hover:to-amber-450 text-slate-950'
                     : 'bg-[#0B192C] hover:bg-slate-900 text-white'
                 }`}
               >
-                Try the Experience
+                <MapPin className="w-3.5 h-3.5" />
+                Launch Bible Journey Map
               </button>
+              {/* SECONDARY: scroll to features */}
               <button
-                onClick={() => handleCTA('Features')}
+                onClick={scrollToFeatures}
                 className={`w-full sm:w-auto px-7 py-3.5 rounded-xl text-xs font-bold uppercase tracking-wide border transition-all cursor-pointer ${
                   theme === 'dark'
                     ? 'bg-slate-900/40 hover:bg-slate-850/60 text-slate-350 border-slate-800'

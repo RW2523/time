@@ -42,6 +42,15 @@ function AppContent() {
     // Silent - do not trigger any popups
   };
 
+  // Called by Hero / Header "Launch Bible Journey Map" buttons
+  const handleLaunchMap = () => {
+    setExploreTab('journey');
+    setTimeout(() => {
+      const el = document.getElementById('explore-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
   const tabClass = (active: boolean) =>
     `px-5 py-2.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
       active
@@ -61,12 +70,12 @@ function AppContent() {
     }`}>
 
       {/* Sticky Header */}
-      <Header onNotify={triggerToast} />
+      <Header onNotify={triggerToast} onLaunchMap={handleLaunchMap} />
 
       <main>
 
         {/* 1. Hero */}
-        <HeroSection onNotify={triggerToast} />
+        <HeroSection onNotify={triggerToast} onLaunchMap={handleLaunchMap} />
 
         {/* 2. Product Promise */}
         <ProductPromise onNotify={triggerToast} />

@@ -4,14 +4,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Play, Sparkles } from 'lucide-react';
+import { Menu, X, Play, MapPin } from 'lucide-react';
 import { useTheme } from '../ThemeContext';
 
 interface HeaderProps {
   onNotify: (msg: string) => void;
+  onLaunchMap: () => void;
 }
 
-export default function Header({ onNotify }: HeaderProps) {
+export default function Header({ onNotify, onLaunchMap }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -36,11 +37,10 @@ export default function Header({ onNotify }: HeaderProps) {
 
   const navLinks = [
     { label: 'Features', id: 'features' },
-    { label: 'Read', id: 'read-section' },
+    { label: 'Explore', id: 'explore-section' },
     { label: 'Chat', id: 'chat-section' },
-    { label: 'Visualize', id: 'visualize-section' },
     { label: 'Plans', id: 'plans-section' },
-    { label: 'Community', id: 'community-section' }
+    { label: 'Community', id: 'community-section' },
   ];
 
   return (
@@ -108,7 +108,7 @@ export default function Header({ onNotify }: HeaderProps) {
           {/* Right CTAs */}
           <div className="hidden md:flex items-center gap-3">
             
-            {/* Quick theme toggler with absolute UI style */}
+            {/* Quick theme toggler */}
             <button
               onClick={toggleTheme}
               className={`p-2 rounded-lg border transition-all cursor-pointer ${
@@ -130,26 +130,17 @@ export default function Header({ onNotify }: HeaderProps) {
               )}
             </button>
 
+            {/* Bible Journey Map — always visible in nav bar */}
             <button
-              onClick={() => onNotify("Launching 3-minute interactive walkthrough demo video...")}
-              className={`text-xs font-bold tracking-wide uppercase px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                theme === 'dark'
-                  ? 'text-slate-300 hover:text-white hover:bg-slate-850'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-stone-100'
-              }`}
-            >
-              <Play className="w-3 h-3 fill-current text-amber-550" />
-              Watch Preview
-            </button>
-            <button
-              onClick={() => onNotify("Opening SabAI Bible sandbox environment...")}
-              className={`px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer ${
+              onClick={onLaunchMap}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer ${
                 theme === 'dark'
                   ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-350 hover:to-amber-450 text-slate-950 font-black'
                   : 'bg-[#0B192C] hover:bg-slate-900 text-white'
               }`}
             >
-              Try SabAI Bible
+              <MapPin className="w-3.5 h-3.5" />
+              Bible Journey Map
             </button>
           </div>
 
@@ -209,25 +200,15 @@ export default function Header({ onNotify }: HeaderProps) {
           
           <div className="flex flex-col gap-2.5 pt-1">
             <button
-              onClick={() => onNotify("Launching interactive video trailer...")}
-              className={`flex items-center justify-center gap-2 font-bold text-xs py-2.5 border rounded-lg transition-all ${
-                theme === 'dark'
-                  ? 'border-slate-800 text-slate-300 hover:bg-slate-850/50'
-                  : 'border-stone-200 text-slate-705 hover:bg-stone-50'
-              }`}
-            >
-              <Play className="w-3.5 h-3.5 fill-current text-amber-550" />
-              Watch Preview
-            </button>
-            <button
-              onClick={() => onNotify("Entering SabAI Bible portal...")}
-              className={`w-full py-2.5 rounded-lg text-xs font-black uppercase text-center transition-all ${
+              onClick={() => { setMobileMenuOpen(false); onLaunchMap(); }}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-black uppercase text-center transition-all ${
                 theme === 'dark'
                   ? 'bg-amber-400 text-slate-950 shadow-sm'
                   : 'bg-[#0B192C] text-white shadow-sm'
               }`}
             >
-              Try SabAI Bible
+              <MapPin className="w-3.5 h-3.5" />
+              Bible Journey Map
             </button>
           </div>
         </div>
