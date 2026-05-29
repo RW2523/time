@@ -64,21 +64,29 @@ Generate exactly ${sceneCount} scenes. Keep facts strictly aligned with the scri
 async function generateImage(ai, prompt, index, eventTitle) {
   if (!ai) return placeholderSvgDataUrl(eventTitle, `Scene ${index}`, index);
   try {
+    const fullPrompt = `${prompt}\n\nArt direction: premium illustrated Bible storybook, parchment palette, warm golden-hour light, soft painterly detail, reverent and educational. 16:9 widescreen composition. No text overlays, no watermarks, no modern objects.`;
     const r = await withRetry(
       () => ai.models.generateContent({
         model: IMAGE_MODEL,
-        contents: `${prompt}\n\nStyle: premium illustrated Bible storybook map / parchment aesthetic, warm golden-hour light, soft painterly detail, reverent and educational. 16:9 format. No text, no watermarks.`
+        contents: fullPrompt,
+        config: {
+          responseModalities: ['IMAGE', 'TEXT'], // required for image output
+          numberOfImages: 1
+        }
       }),
       `image-${index}`
     );
     const parts   = r?.candidates?.[0]?.content?.parts || r?.parts || [];
     const imgPart = parts.find((p) => p.inlineData || p.inline_data);
     const inline  = imgPart?.inlineData || imgPart?.inline_data;
-    if (!inline?.data) return placeholderSvgDataUrl(eventTitle, `Scene ${index}`, index);
+    if (!inline?.data) {
+      console.warn(`[image-${index}] no inlineData in response, using placeholder`);
+      return placeholderSvgDataUrl(eventTitle, `Scene ${index}`, index);
+    }
     const mime = inline.mimeType || inline.mime_type || 'image/png';
     return `data:${mime};base64,${inline.data}`;
   } catch (e) {
-    console.warn(`[image-${index}] failed, using placeholder:`, e.message);
+    console.warn(`[image-${index}] failed (${e.message}), using placeholder`);
     return placeholderSvgDataUrl(eventTitle, `Scene ${index}`, index);
   }
 }
