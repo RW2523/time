@@ -23,9 +23,10 @@ import { buildLineageIndex, matchEventToLineagePersonIds } from './lib/lineageMa
 import { highlightEdgesForNodes, highlightNodesForTargets } from './lib/lineagePath.js';
 import { getPersonPerspectiveEntry } from './lib/eventPersonPerspective.js';
 import { timelineMatchFromEventEra } from './lib/timelineEra.js';
+import { makeStoryVideo, downloadBlob, saveVideoLocally, loadVideoLocally } from './utils/makeStoryVideo.js';
 import {
   BookOpen, CalendarDays, ChevronLeft, ChevronRight, Download,
-  Filter, GitBranch, HardDrive, Loader2, Map, MapPin, Maximize2,
+  Filter, Film, GitBranch, HardDrive, Loader2, Map, MapPin, Maximize2,
   MessageCircle, Minimize2, Pause, Play, Search, Server, Settings,
   Sparkles, TreePine, Users, Wand2, X
 } from 'lucide-react';
@@ -426,17 +427,42 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const [videoCinema, setVideoCinema]     = useState(false);
-  const [mp4Busy, setMp4Busy]             = useState(false);
+
+  // Video generation state
+  const [videoStatus,   setVideoStatus]   = useState('idle'); // idle | making | ready | error
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoUrl,      setVideoUrl]      = useState(null);
+  const [videoExt,      setVideoExt]      = useState('webm');
+  const videoRef = useRef(null);
+
+  // Load saved video from IndexedDB when event changes
+  useEffect(() => {
+    setVideoUrl(null); setVideoStatus('idle'); setVideoProgress(0);
+    if (!exportEventId) return;
+    loadVideoLocally(exportEventId).then((rec) => {
+      if (rec) { setVideoUrl(rec.url); setVideoExt(rec.ext || 'webm'); setVideoStatus('ready'); }
+    });
+  }, [exportEventId]);
+
+  // Auto-advance scenes slideshow (always runs so user sees all scenes)
+  useEffect(() => {
+    if (!story?.scenes?.length) return;
+    const dur = story.scenes[sceneIndex]?.durationSec || 7;
+    const timer = setTimeout(() => {
+      setSceneIndex((i) => (i + 1) % story.scenes.length);
+    }, dur * 1000);
+    return () => clearTimeout(timer);
+  }, [story, sceneIndex, setSceneIndex]);
 
   const exitCinema = useCallback(() => {
     setVideoCinema(false);
-    if (typeof document !== 'undefined' && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   }, []);
-  const enterCinema = useCallback(async () => {
-    if (!story) return;
+  const enterCinema = useCallback(() => {
+    if (!story && videoStatus !== 'ready') return;
     setVideoCinema(true);
     requestAnimationFrame(() => sectionRef?.current?.requestFullscreen?.().catch(() => {}));
-  }, [story, sectionRef]);
+  }, [story, videoStatus, sectionRef]);
 
   useEffect(() => {
     if (!videoCinema) return;
@@ -444,61 +470,93 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
     document.addEventListener('fullscreenchange', fn);
     return () => document.removeEventListener('fullscreenchange', fn);
   }, [videoCinema]);
-  useEffect(() => { if (!story) setVideoCinema(false); }, [story]);
-  useEffect(() => {
-    if (!story || story.audioUrl) return;
-    let i = 0;
-    const timer = setInterval(() => { i = (i + 1) % story.scenes.length; setSceneIndex(i); }, 4500);
-    return () => clearInterval(timer);
-  }, [story, setSceneIndex]);
 
   const resolveUrl = (url) => (!url ? null : (url.startsWith('data:') || url.startsWith('http') ? url : `${apiBase}${url}`));
   const audioSrc = resolveUrl(story?.audioUrl);
-  const scene  = story?.scenes?.[sceneIndex];
-  const imgSrc = resolveUrl(scene?.imageUrl);
+  const scene    = story?.scenes?.[sceneIndex];
+  const imgSrc   = resolveUrl(scene?.imageUrl);
 
-  const toggle = async () => {
+  const toggleAudio = async () => {
     if (!audioRef.current || !audioSrc) return;
     if (playing) { audioRef.current.pause(); setPlaying(false); }
-    else { await audioRef.current.play(); setPlaying(true); }
+    else { await audioRef.current.play().catch(() => {}); setPlaying(true); }
   };
-
-  const downloadMp4 = useCallback(async () => {
-    const id = story?.eventId || exportEventId;
-    if (!id || !story?.audioUrl) return;
-    setMp4Busy(true);
-    try {
-      const r = await fetch(`${apiBase}/api/events/${id}/story-video.mp4`);
-      if (!r.ok) throw new Error(`Download failed (${r.status})`);
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `${id}-story.mp4`; a.rel = 'noopener';
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch (e) { window.alert(e?.message || 'Download failed.'); }
-    finally { setMp4Busy(false); }
-  }, [apiBase, story?.eventId, story?.audioUrl, exportEventId]);
 
   const onAudioTime = (e) => {
     if (!story?.scenes?.length) return;
     const el = e.currentTarget; const d = el.duration;
     if (d && Number.isFinite(d)) { setAudioDuration(d); setAudioProgress((el.currentTime / d) * 100); }
-    const total = story.scenes.reduce((a, s) => a + Number(s.durationSec || 6), 0);
+    const rawTotal = story.scenes.reduce((a, s) => a + Number(s.durationSec || 7), 0);
+    const scale    = d && Number.isFinite(d) ? d / rawTotal : 1;
     let acc = 0;
     for (let i = 0; i < story.scenes.length; i++) {
-      acc += Number(story.scenes[i].durationSec || total / story.scenes.length);
+      acc += Number(story.scenes[i].durationSec || 7) * scale;
       if (el.currentTime <= acc) { setSceneIndex(i); break; }
     }
   };
 
+  // Generate MP4/WebM video client-side
+  const handleMakeVideo = useCallback(async () => {
+    if (!story) return;
+    setVideoStatus('making'); setVideoProgress(0); setVideoUrl(null);
+    try {
+      const blob = await makeStoryVideo(story, (p) => setVideoProgress(Math.round(p * 100)));
+      const url  = URL.createObjectURL(blob);
+      setVideoUrl(url); setVideoExt(blob._ext || 'webm'); setVideoStatus('ready');
+      await saveVideoLocally(exportEventId || story.eventId, blob);
+    } catch (err) {
+      console.error('[video]', err);
+      setVideoStatus('error');
+    }
+  }, [story, exportEventId]);
+
+  const handleDownload = () => {
+    if (!videoUrl) return;
+    const name = `${exportEventId || story?.eventId || 'story'}-video.${videoExt}`;
+    const a = Object.assign(document.createElement('a'), { href: videoUrl, download: name, rel: 'noopener' });
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+
   return (
     <section ref={sectionRef} className={`player panel story-player${videoCinema ? ' story-player--cinema' : ''}`}>
-      {videoCinema && story && (
+      {videoCinema && (
         <button type="button" className="story-player__cinema-close" onClick={exitCinema} aria-label="Exit fullscreen"><X size={22} /></button>
       )}
-      {story && (
+
+      {/* ── Video player (shown when video is ready) ── */}
+      {videoStatus === 'ready' && videoUrl && (
+        <div className="story-video-player">
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            controls
+            autoPlay
+            loop
+            playsInline
+            className="story-video-player__video"
+            aria-label={`${story?.title || 'Story'} video`}
+          />
+          <div className="story-video-player__overlay-btns">
+            <button type="button" className="secondary story-cinema-toggle" onClick={videoCinema ? exitCinema : enterCinema}>
+              {videoCinema ? <><Minimize2 size={15} /> Exit</> : <><Maximize2 size={15} /> Fullscreen</>}
+            </button>
+            <button type="button" className="secondary" onClick={handleDownload}>
+              <Download size={15} /> Download
+            </button>
+            <button type="button" className="secondary" onClick={() => setVideoStatus('idle')}>
+              <Film size={15} /> Scenes view
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Scene slideshow (shown when no video yet) ── */}
+      {videoStatus !== 'ready' && story && (
         <figure className={`story-theater${loading ? ' story-theater--busy' : ''}`}>
           <div className="story-theater__frame">
-            {imgSrc ? <img src={imgSrc} alt={scene?.title || story.title} /> : <div className="story-theater__placeholder">Preparing scene…</div>}
+            {imgSrc
+              ? <img src={imgSrc} alt={scene?.title || story.title} key={sceneIndex} className="story-theater__scene-img" />
+              : <div className="story-theater__placeholder">Preparing scene…</div>}
             <div className="story-theater__shade" aria-hidden />
             <figcaption className="story-theater__caption">
               <span className="story-theater__badge">Scene {sceneIndex + 1} of {story.scenes.length}</span>
@@ -507,6 +565,19 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
             </figcaption>
           </div>
           {loading && <div className="story-theater__loading" role="status">Updating story…</div>}
+          {/* Video generation progress */}
+          {videoStatus === 'making' && (
+            <div className="story-video-progress">
+              <Loader2 size={18} className="spin" />
+              <span>Creating video… {videoProgress}%</span>
+              <div className="story-video-progress__bar"><div style={{ width: `${videoProgress}%` }} /></div>
+            </div>
+          )}
+          {videoStatus === 'error' && (
+            <div className="story-video-progress story-video-progress--error">
+              Video creation failed — try again
+            </div>
+          )}
           <div className="story-theater__scenes">
             {story.scenes.map((_, i) => (
               <button key={i} type="button"
@@ -514,9 +585,15 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
                 onClick={() => setSceneIndex(i)} aria-label={`Scene ${i + 1}`} />
             ))}
           </div>
-          {audioDuration > 0 && <div className="story-theater__bar" aria-hidden><div className="story-theater__bar-fill" style={{ width: `${audioProgress}%` }} /></div>}
+          {audioDuration > 0 && (
+            <div className="story-theater__bar" aria-hidden>
+              <div className="story-theater__bar-fill" style={{ width: `${audioProgress}%` }} />
+            </div>
+          )}
         </figure>
       )}
+
+      {/* ── Toolbar ── */}
       <div className="player-toolbar">
         <div className="player-left">
           <div className="player-icon"><Sparkles size={22} aria-hidden /></div>
@@ -525,24 +602,48 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
             <p>Gemini builds illustrated scenes and narration.</p>
           </div>
         </div>
+
         {story ? (
           <div className="player-actions">
-            <button type="button" className="primary" onClick={toggle} disabled={!audioSrc}>
-              {playing ? <Pause size={16} /> : <Play size={16} />} {audioSrc ? 'Play' : 'No audio'}
-            </button>
-            <audio ref={audioRef} src={audioSrc || undefined}
-              onLoadedMetadata={(e) => { const d = e.currentTarget.duration; if (d && Number.isFinite(d)) setAudioDuration(d); }}
-              onTimeUpdate={onAudioTime} onEnded={() => { setPlaying(false); setAudioProgress(0); }}
-              controls className="player-audio" />
+            {/* Audio play/pause */}
+            {audioSrc && (
+              <>
+                <button type="button" className="primary" onClick={toggleAudio}>
+                  {playing ? <><Pause size={16} /> Pause</> : <><Play size={16} /> Play narration</>}
+                </button>
+                <audio ref={audioRef} src={audioSrc}
+                  onLoadedMetadata={(e) => { const d = e.currentTarget.duration; if (d && isFinite(d)) setAudioDuration(d); }}
+                  onTimeUpdate={onAudioTime}
+                  onEnded={() => { setPlaying(false); setAudioProgress(0); setSceneIndex(0); }}
+                />
+              </>
+            )}
+
+            {/* Create video button */}
+            {videoStatus === 'idle' || videoStatus === 'error' ? (
+              <button type="button" className="primary story-make-video-btn"
+                onClick={handleMakeVideo} disabled={loading || videoStatus === 'making'}>
+                <Film size={15} /> Create MP4 video
+              </button>
+            ) : videoStatus === 'making' ? (
+              <button type="button" className="primary story-make-video-btn" disabled>
+                <Loader2 size={15} className="spin" /> Rendering… {videoProgress}%
+              </button>
+            ) : (
+              <button type="button" className="secondary story-make-video-btn"
+                onClick={() => { setVideoStatus('idle'); handleMakeVideo(); }}>
+                <Film size={15} /> Re-create video
+              </button>
+            )}
+
+            {/* Scene stepper */}
             <div className="scene-stepper" role="tablist">
-              {story.scenes.map((s, i) => <button type="button" key={s.title + i} className={i === sceneIndex ? 'active' : ''} onClick={() => setSceneIndex(i)}>{i + 1}</button>)}
+              {story.scenes.map((s, i) => (
+                <button type="button" key={s.title + i} className={i === sceneIndex ? 'active' : ''} onClick={() => setSceneIndex(i)}>{i + 1}</button>
+              ))}
             </div>
-            <button type="button" className="secondary story-cinema-toggle" onClick={videoCinema ? exitCinema : enterCinema}>
-              {videoCinema ? <><Minimize2 size={16} /> Exit</> : <><Maximize2 size={16} /> Fullscreen</>}
-            </button>
-            <button type="button" className="secondary story-download-mp4" onClick={downloadMp4} disabled={loading || mp4Busy || !audioSrc}>
-              {mp4Busy ? <><Loader2 size={16} className="spin" /> Preparing…</> : <><Download size={16} /> Download</>}
-            </button>
+
+            {/* New version */}
             <button type="button" className="secondary story-regenerate" onClick={onRegenerate} disabled={loading}>
               {loading ? 'Working…' : 'New version'}
             </button>
