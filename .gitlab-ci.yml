@@ -4,8 +4,8 @@
 #
 # Required GitLab CI/CD Variables (Settings → CI/CD → Variables):
 #   VERCEL_TOKEN           – Vercel personal access token
-#   VERCEL_ORG_ID          – from .vercel/project.json  (after vercel link)
-#   VERCEL_PROJECT_ID      – from .vercel/project.json  (after vercel link)
+#   VERCEL_ORG_ID          – team_TjrgIf7wOazD9zjuNwL20Isf
+#   VERCEL_PROJECT_ID      – prj_m4N3vruETEKVSp7rO8DNT09jjY9m
 #   VITE_SUPABASE_URL      – Supabase project URL
 #   VITE_SUPABASE_ANON_KEY – Supabase anon/public key
 # ─────────────────────────────────────────────────────────────────────────────
@@ -61,12 +61,21 @@ build:
 # ── 3a. Deploy Preview (Merge Requests) ──────────────────────────────────────
 deploy:preview:
   stage: deploy
+  variables:
+    VERCEL_ORG_ID: $VERCEL_ORG_ID
+    VERCEL_PROJECT_ID: $VERCEL_PROJECT_ID
   before_script:
+    - apk add --no-cache curl
     - npm install -g vercel@latest
+    - |
+      if [ -z "$VERCEL_TOKEN" ]; then
+        echo "ERROR: VERCEL_TOKEN is not set. Go to GitLab → Settings → CI/CD → Variables and add it."
+        exit 1
+      fi
   script:
-    - cd sabai-bible
+    # Deploy from project root so vercel.json is picked up
     - vercel --token="${VERCEL_TOKEN}" --yes 2>&1 | tee /tmp/vercel.log
-    - grep -o 'https://[^ ]*\.vercel\.app' /tmp/vercel.log | head -1
+    - grep -oE 'https://[^ ]+\.vercel\.app' /tmp/vercel.log | head -1
   environment:
     name: preview/$CI_COMMIT_REF_SLUG
   rules:
@@ -76,12 +85,21 @@ deploy:preview:
 # ── 3b. Deploy Production (main / master) ────────────────────────────────────
 deploy:production:
   stage: deploy
+  variables:
+    VERCEL_ORG_ID: $VERCEL_ORG_ID
+    VERCEL_PROJECT_ID: $VERCEL_PROJECT_ID
   before_script:
+    - apk add --no-cache curl
     - npm install -g vercel@latest
+    - |
+      if [ -z "$VERCEL_TOKEN" ]; then
+        echo "ERROR: VERCEL_TOKEN is not set. Go to GitLab → Settings → CI/CD → Variables and add it."
+        exit 1
+      fi
   script:
-    - cd sabai-bible
+    # Deploy from project root so vercel.json is picked up
     - vercel --token="${VERCEL_TOKEN}" --prod --yes 2>&1 | tee /tmp/vercel.log
-    - echo "Production URL:" && grep -o 'https://[^ ]*\.vercel\.app' /tmp/vercel.log | head -1
+    - echo "Production URL:" && grep -oE 'https://[^ ]+\.vercel\.app' /tmp/vercel.log | head -1
   environment:
     name: production
     url: $APP_URL
