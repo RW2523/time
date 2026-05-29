@@ -4,7 +4,7 @@
  */
 
 /** Loaded image pixel width/height (square). Change to 1024 if assets are resized. */
-export const SPRITE_SHEET_SIZE = 1254;
+export const SPRITE_SHEET_SIZE = 1024;
 
 /** Reference coordinate system for ICON_GRID (original generated artboard). */
 export const BASE_SHEET_SIZE = 1254;
