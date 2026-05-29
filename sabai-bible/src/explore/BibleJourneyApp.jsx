@@ -430,6 +430,22 @@ function StoryPanel(props) {
       </div>
     );
   }
+  if (props.storyError) {
+    return (
+      <div className="story-api-state">
+        <div className="story-api-state__icon" aria-hidden>⚠️</div>
+        <h3>Story generation failed</h3>
+        <p>{props.storyError}</p>
+        <div className="story-api-state__note">
+          <Server size={14} aria-hidden />
+          Make sure your backend server is running and the <code>VITE_API_BASE</code> URL is correct.
+        </div>
+        <button type="button" className="primary" style={{ marginTop: 16 }} onClick={props.onClearError}>
+          Try again
+        </button>
+      </div>
+    );
+  }
   return <StoryPlayer {...props} />;
 }
 
@@ -646,6 +662,7 @@ export default function BibleJourneyApp() {
   const [playing, setPlaying]                 = useState(false);
   const [storyCacheModal, setStoryCacheModal] = useState(null);
   const [storyCacheBanner, setStoryCacheBanner] = useState(null);
+  const [storyError, setStoryError] = useState(null);
   const [mapPopupDismissNonce, setMapPopupDismissNonce] = useState(0);
   const [timelineScrollPulse, setTimelineScrollPulse]   = useState(0);
   const [listSelectSignal, setListSelectSignal]         = useState(0);
@@ -697,7 +714,7 @@ export default function BibleJourneyApp() {
 
   useEffect(() => {
     setContent(null); setStory(null); setSceneIndex(0); setPlaying(false);
-    setStoryCacheModal(null); setStoryCacheBanner(null);
+    setStoryCacheModal(null); setStoryCacheBanner(null); setStoryError(null);
     if (!API_BASE) return;
     const ac = new AbortController();
     (async () => {
@@ -712,15 +729,18 @@ export default function BibleJourneyApp() {
   }, [selectedId]);
 
   const loadCachedStory = async () => {
-    setStoryLoading(true);
+    setStoryLoading(true); setStoryError(null);
     try {
       const r = await fetch(`${API_BASE}/api/events/${selected.id}/story`);
-      if (!r.ok) throw new Error('Could not load saved story.');
+      if (!r.ok) throw new Error(`Could not load saved story (${r.status}).`);
       const data = await r.json();
       if (data.error) throw new Error(data.error);
       setStory(data); setSceneIndex(0); setStoryCacheModal(null); setStoryCacheBanner(null);
       setActiveTab('story');
-    } catch (err) { window.alert(err.message || 'Load failed.'); }
+    } catch (err) {
+      setStoryError(err.message || 'Load failed. Please try again.');
+      setActiveTab('story');
+    }
     finally { setStoryLoading(false); }
   };
 
@@ -747,17 +767,24 @@ export default function BibleJourneyApp() {
   };
 
   const generateStory = async ({ force = false } = {}) => {
-    setStoryLoading(true);
+    setStoryLoading(true); setStoryError(null);
     try {
       const r = await fetch(`${API_BASE}/api/events/${selected.id}/story`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sceneCount: 4, force })
       });
+      if (!r.ok) throw new Error(`Server returned ${r.status}. Check that your backend is running.`);
       const data = await r.json();
       if (data.error) throw new Error(data.error);
       setStory(data); setSceneIndex(0); setStoryCacheModal(null); setStoryCacheBanner(null);
       setActiveTab('story');
-    } catch (err) { window.alert(err.message || 'Story generation failed.'); }
+    } catch (err) {
+      const msg = err.name === 'TypeError'
+        ? 'Could not reach the story server. Check your internet connection and API URL.'
+        : (err.message || 'Story generation failed. Please try again.');
+      setStoryError(msg);
+      setActiveTab('story');
+    }
     finally { setStoryLoading(false); }
   };
 
@@ -839,8 +866,9 @@ export default function BibleJourneyApp() {
               {activeTab === 'story' && (
                 <div className="bjm-tab-content bjm-tab-content--scroll">
                   <StoryPanel apiBase={API_BASE} story={story} loading={storyLoading}
+                    storyError={storyError} onClearError={() => setStoryError(null)}
                     onGenerate={() => generateStory()} onRegenerate={() => generateStory({ force: true })}
-                    cacheBanner={!story && storyCacheBanner && storyCacheBanner.eventId === selectedId ? storyCacheBanner : null}
+                    cacheBanner={!story && !storyError && storyCacheBanner && storyCacheBanner.eventId === selectedId ? storyCacheBanner : null}
                     onLoadCachedInline={loadCachedStory}
                     onOpenReplaceModal={() => { if (storyCacheBanner) { setStoryCacheModal({ ...storyCacheBanner, enterConfirm: true }); setStoryCacheBanner(null); } }}
                     onDismissCacheBanner={() => setStoryCacheBanner(null)}

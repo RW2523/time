@@ -18,10 +18,10 @@ sabai-bible/.env.*.local
 server/generated
 output/
 dist/
-src/
-public/
-index.html
-package-lock.json
+/src/
+/public/
+/index.html
+/package-lock.json
 # Duplicate sprite sheets at sabai-bible/public root (canonical copies are in bible-event-icons/)
 sabai-bible/public/sheet-*.png
 
