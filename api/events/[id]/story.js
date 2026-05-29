@@ -4,7 +4,7 @@ import {
   TEXT_MODEL, IMAGE_MODEL, TTS_MODEL, TTS_VOICE
 } from '../../_shared.js';
 
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 300 };
 
 // ── Fallback plan (no Gemini) ─────────────────────────────────────────────────
 function fallbackStory(event) {
@@ -70,8 +70,7 @@ async function generateImage(ai, prompt, index, eventTitle) {
         model: IMAGE_MODEL,
         contents: fullPrompt,
         config: {
-          responseModalities: ['IMAGE', 'TEXT'], // required for image output
-          numberOfImages: 1
+          responseModalities: ['IMAGE', 'TEXT'] // required for Gemini to return image bytes
         }
       }),
       `image-${index}`

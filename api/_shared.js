@@ -7,9 +7,8 @@ import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 
 // ── Models ────────────────────────────────────────────────────────────────────
-// gemini-2.5-flash-image is not a valid API model name — correct names below.
 export const TEXT_MODEL  = process.env.GEMINI_TEXT_MODEL  || 'gemini-2.5-flash';
-export const IMAGE_MODEL = 'gemini-2.0-flash-exp-image-generation'; // only model that supports IMAGE responseModality
+export const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image'; // confirmed working
 export const TTS_MODEL   = process.env.GEMINI_TTS_MODEL   || 'gemini-2.5-flash-preview-tts';
 export const TTS_VOICE   = process.env.GEMINI_TTS_VOICE   || 'Kore';
 
