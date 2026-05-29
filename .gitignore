@@ -14,8 +14,16 @@ sabai-bible/.env
 sabai-bible/.env.local
 sabai-bible/.env.*.local
 
-# ── Generated server output (large binary + AI-generated files) ──────────────
+# ── Generated / legacy output (large binaries, old standalone app) ───────────
 server/generated
+output/
+dist/
+src/
+public/
+index.html
+package-lock.json
+# Duplicate sprite sheets at sabai-bible/public root (canonical copies are in bible-event-icons/)
+sabai-bible/public/sheet-*.png
 
 # ── OS junk ──────────────────────────────────────────────────────────────────
 .DS_Store
