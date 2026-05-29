@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import ProductFeatures from './components/ProductFeatures';
@@ -14,9 +14,11 @@ import UserPersonas from './components/UserPersonas';
 import TrustResponsibility from './components/TrustResponsibility';
 import ContactSection from './components/ContactSection';
 import Footer from './components/Footer';
-import { Map } from 'lucide-react';
+import { Map, X } from 'lucide-react';
 
 import { ThemeProvider, useTheme } from './ThemeContext';
+
+const BibleJourneyApp = lazy(() => import('./explore/BibleJourneyApp.jsx'));
 
 export default function App() {
   return (
@@ -26,19 +28,82 @@ export default function App() {
   );
 }
 
+/* ─── Full-screen map modal ────────────────────────────────────────────── */
+function MapModal({ onClose }: { onClose: () => void }) {
+  // Close on Escape key
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    // Prevent body scroll while modal is open
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[9000] flex flex-col"
+      style={{ background: '#0B192C' }}
+    >
+      {/* Close bar */}
+      <div
+        className="flex items-center justify-between px-4 py-2.5 border-b shrink-0"
+        style={{ background: '#0a1628', borderColor: 'rgba(51,65,85,0.6)' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+            <Map className="w-3.5 h-3.5 text-emerald-400" />
+          </div>
+          <div>
+            <span className="text-white text-xs font-extrabold font-display tracking-tight">Bible Journey Map</span>
+            <span className="text-slate-500 text-[9px] font-mono ml-2 uppercase tracking-wider">Interactive Atlas</span>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-300 hover:text-white hover:border-slate-500 text-xs font-bold transition-all cursor-pointer"
+          aria-label="Close map"
+        >
+          <X className="w-3.5 h-3.5" />
+          Close
+        </button>
+      </div>
+
+      {/* Map fills the rest */}
+      <div className="flex-1 min-h-0 overflow-auto">
+        <Suspense fallback={
+          <div className="w-full h-full flex flex-col items-center justify-center gap-4 min-h-[400px]"
+               style={{ background: '#0B192C' }}>
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+              <Map className="w-7 h-7 text-emerald-400" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-bold text-slate-300 mb-2">Loading Bible Journey Map…</p>
+              <div className="flex items-center justify-center gap-1.5">
+                {[0, 150, 300].map(d => (
+                  <span key={d} className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce"
+                        style={{ animationDelay: `${d}ms` }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        }>
+          <BibleJourneyApp />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main app ─────────────────────────────────────────────────────────── */
 function AppContent() {
   const { theme } = useTheme();
+  const [mapOpen, setMapOpen] = useState(false);
 
   const triggerToast = (_msg: string) => {};
-
-  const handleLaunchMap = () => {
-    setTimeout(() => {
-      const el = document.getElementById('map-section');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
-  };
-
-  const [mapLoaded, setMapLoaded] = useState(false);
+  const handleLaunchMap = () => setMapOpen(true);
 
   return (
     <div className={`relative min-h-screen transition-colors duration-500 overflow-x-hidden ${
@@ -50,7 +115,6 @@ function AppContent() {
       <Header onNotify={triggerToast} onLaunchMap={handleLaunchMap} />
 
       <main>
-
         {/* 1. Hero */}
         <HeroSection onNotify={triggerToast} onLaunchMap={handleLaunchMap} />
 
@@ -74,105 +138,12 @@ function AppContent() {
 
         {/* 8. Contact / Early Access */}
         <ContactSection />
-
-        {/* 9. Live Bible Journey Map — explore the app */}
-        <section
-          id="map-section"
-          className={`relative py-20 px-4 sm:px-6 lg:px-8 transition-colors duration-500 border-t ${
-            theme === 'dark' ? 'bg-[#060d1f] border-slate-800' : 'bg-stone-50 border-stone-200'
-          }`}
-        >
-          <div className="max-w-7xl mx-auto">
-
-            <div className="text-center mb-10">
-              <span className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-extrabold uppercase tracking-[0.2em] px-3 py-1.5 rounded-full border mb-4 ${
-                theme === 'dark'
-                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-              }`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live — Fully Interactive
-              </span>
-              <h2 className={`text-3xl sm:text-4xl font-display font-black tracking-tight mb-3 ${
-                theme === 'dark' ? 'text-white' : 'text-stone-900'
-              }`}>
-                Explore the Bible Journey Map
-              </h2>
-              <p className={`text-sm max-w-xl mx-auto leading-relaxed ${
-                theme === 'dark' ? 'text-slate-400' : 'text-stone-500'
-              }`}>
-                A preview of what awaits you in the app. Trace 100+ biblical events on a live map —
-                filter by era, explore family lineages, and play story narrations for each event.
-              </p>
-
-              <div className={`inline-flex flex-wrap justify-center gap-0 divide-x rounded-2xl border overflow-hidden mt-6 ${
-                theme === 'dark'
-                  ? 'border-slate-800 divide-slate-800 bg-slate-950/60'
-                  : 'border-stone-200 divide-stone-200 bg-white shadow-sm'
-              }`}>
-                {[
-                  { v: '100+', l: 'Bible Events' },
-                  { v: '4',    l: 'Journey Routes' },
-                  { v: '6',    l: 'Biblical Eras' },
-                  { v: '∞',   l: 'Lineages' },
-                ].map(s => (
-                  <div key={s.l} className="px-5 py-3 text-center min-w-[80px]">
-                    <div className={`text-base font-black font-display ${
-                      theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'
-                    }`}>{s.v}</div>
-                    <div className={`text-[9px] font-mono font-bold uppercase tracking-wider ${
-                      theme === 'dark' ? 'text-slate-500' : 'text-stone-500'
-                    }`}>{s.l}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className={`relative rounded-3xl border overflow-hidden ${
-              theme === 'dark' ? 'border-slate-800' : 'border-stone-200 shadow-sm'
-            }`} style={{ height: '80vh', minHeight: 540 }}>
-
-              {/* Loading overlay — hidden once iframe fires onLoad */}
-              {!mapLoaded && (
-                <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 ${
-                  theme === 'dark' ? 'bg-[#030a18]' : 'bg-stone-100'
-                }`}>
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                    theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-100'
-                  }`}>
-                    <Map className={`w-7 h-7 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                  </div>
-                  <div className="text-center">
-                    <p className={`text-sm font-bold mb-2 ${
-                      theme === 'dark' ? 'text-slate-300' : 'text-stone-600'
-                    }`}>Loading Bible Journey Map…</p>
-                    <div className="flex items-center justify-center gap-1.5">
-                      {[0, 150, 300].map(d => (
-                        <span key={d}
-                              className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce"
-                              style={{ animationDelay: `${d}ms` }} />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <iframe
-                src="/map"
-                title="Bible Journey Map"
-                onLoad={() => setMapLoaded(true)}
-                className="w-full h-full border-0"
-                allow="fullscreen"
-                loading="lazy"
-              />
-            </div>
-
-          </div>
-        </section>
-
       </main>
 
       <Footer onNotify={triggerToast} onLaunchMap={handleLaunchMap} />
+
+      {/* Full-screen Bible Journey Map modal */}
+      {mapOpen && <MapModal onClose={() => setMapOpen(false)} />}
     </div>
   );
 }
