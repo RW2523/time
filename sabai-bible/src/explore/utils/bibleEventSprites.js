@@ -23,11 +23,11 @@ const COLS = 5;
 const ROWS = 2;
 
 const SHEETS = [
-  '/bible-event-icons/sheet-01-10.png',
-  '/bible-event-icons/sheet-11-20.png',
-  '/bible-event-icons/sheet-21-30.png',
-  '/bible-event-icons/sheet-31-40.png',
-  '/bible-event-icons/sheet-41-50.png'
+  '/sheet-01-10.png',
+  '/sheet-11-20.png',
+  '/sheet-21-30.png',
+  '/sheet-31-40.png',
+  '/sheet-41-50.png'
 ];
 
 /** @type {Record<string, [number, number]>} */
