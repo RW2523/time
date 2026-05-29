@@ -315,21 +315,50 @@ export default function Footer({ onNotify }: FooterProps) {
           </div>
         </div>
 
-        {/* Bottom copyright list */}
-        <div className={`flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] font-mono font-bold uppercase tracking-wide transition-colors ${
-          theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
-        }`}>
-          <span>
-            © {currentYear} SabAI Bible Platform. Developed in mutual service to the Word.
-          </span>
-          <div className="flex gap-4">
-            <button onClick={() => handleLinkClick('Licensing')} className="hover:text-blue-500 transition-colors cursor-pointer outline-none">
-              Licensing Policy
-            </button>
-            <span>•</span>
-            <button onClick={() => handleLinkClick('Security Statement')} className="hover:text-blue-500 transition-colors cursor-pointer outline-none">
-              Data Security
-            </button>
+        {/* Bottom copyright + CodeWork attribution */}
+        <div className="space-y-4">
+          <div className={`flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] font-mono font-bold uppercase tracking-wide transition-colors ${
+            theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+          }`}>
+            <span>
+              © {currentYear} SabAI Bible Platform. Developed in mutual service to the Word.
+            </span>
+            <div className="flex gap-4">
+              <button onClick={() => handleLinkClick('Licensing')} className="hover:text-blue-500 transition-colors cursor-pointer outline-none">
+                Licensing Policy
+              </button>
+              <span>•</span>
+              <button onClick={() => handleLinkClick('Security Statement')} className="hover:text-blue-500 transition-colors cursor-pointer outline-none">
+                Data Security
+              </button>
+            </div>
+          </div>
+
+          {/* CodeWork AI attribution */}
+          <div className={`flex items-center justify-center gap-2 pt-2 border-t ${
+            theme === 'dark' ? 'border-slate-800/50' : 'border-stone-200/60'
+          }`}>
+            <span className={`text-[9px] font-mono tracking-wider ${theme === 'dark' ? 'text-slate-600' : 'text-stone-400'}`}>
+              SABAI BIBLE APP POWERED BY
+            </span>
+            <a
+              href="https://codework.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-1.5 text-[9px] font-mono font-extrabold tracking-wider uppercase transition-colors hover:opacity-80 ${
+                theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
+              }`}
+            >
+              {/* CodeWork icon mark */}
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="16 18 22 12 16 6"/>
+                <polyline points="8 6 2 12 8 18"/>
+              </svg>
+              CodeWork AI
+            </a>
+            <span className={`text-[9px] font-mono ${theme === 'dark' ? 'text-slate-700' : 'text-stone-300'}`}>
+              · AI-Driven Custom Software
+            </span>
           </div>
         </div>
       </div>

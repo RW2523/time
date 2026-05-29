@@ -12,6 +12,7 @@ import StudyPlansSection from './components/StudyPlansSection';
 import CommunitySection from './components/CommunitySection';
 import UserPersonas from './components/UserPersonas';
 import TrustResponsibility from './components/TrustResponsibility';
+import ContactSection from './components/ContactSection';
 import Footer from './components/Footer';
 import { Map } from 'lucide-react';
 
@@ -158,6 +159,9 @@ function AppContent() {
 
         {/* 8. Trust */}
         <TrustResponsibility />
+
+        {/* 9. Contact / Early Access */}
+        <ContactSection />
 
       </main>
 

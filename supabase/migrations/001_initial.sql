@@ -137,3 +137,34 @@ INSERT INTO verses (reference, text, theme, outputs) VALUES
   }'::jsonb
 )
 ON CONFLICT (reference) DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- contacts  (early access / interest capture)
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS contacts (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        text        NOT NULL,
+  email       text        NOT NULL,
+  role        text,
+  message     text,
+  source      text        DEFAULT 'website',
+  created_at  timestamptz DEFAULT now()
+);
+
+-- Prevent duplicate signups from the same email address
+CREATE UNIQUE INDEX IF NOT EXISTS contacts_email_unique ON contacts (lower(email));
+
+-- RLS: allow public insert (anon key), restrict reads to authenticated only
+ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "contacts_public_insert"  ON contacts;
+DROP POLICY IF EXISTS "contacts_auth_select"    ON contacts;
+
+CREATE POLICY "contacts_public_insert"
+  ON contacts FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+CREATE POLICY "contacts_auth_select"
+  ON contacts FOR SELECT
+  TO authenticated
+  USING (true);
