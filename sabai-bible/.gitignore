@@ -4,5 +4,7 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
-!.env.example
+# Allow .env (safe defaults, no secrets) and .env.example
+# Block all local override files that may contain secrets or localhost URLs
+.env.local
+.env.*.local

@@ -1,0 +1,10 @@
+# Files Vercel should never upload or use during build
+# .env files with local dev overrides must never leak into production bundles
+sabai-bible/.env.local
+sabai-bible/.env.*.local
+.env.local
+.env.*.local
+
+# Large development artifacts
+sabai-bible/node_modules
+node_modules

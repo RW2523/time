@@ -7,10 +7,10 @@ node_modules
 sabai-bible/node_modules
 
 # ── Environment files (never commit real secrets) ────────────────────────────
-.env
+# Root .env contains server secrets; sabai-bible/.env is safe (no secrets) and IS committed
+/.env
 .env.local
 .env.*.local
-sabai-bible/.env
 sabai-bible/.env.local
 sabai-bible/.env.*.local
 
