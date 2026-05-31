@@ -30,46 +30,6 @@ import {
   MessageCircle, Minimize2, Pause, Play, Search, Server, Settings,
   Sparkles, TreePine, Users, Wand2, X
 } from 'lucide-react';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-// ── Browser-side Supabase client (for Storage uploads) ───────────────────────
-const _sbUrl = import.meta.env.VITE_SUPABASE_URL  || '';
-const _sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-let _sbClient = null;
-function getBrowserSupabase() {
-  if (!_sbUrl || !_sbKey) return null;
-  if (!_sbClient) _sbClient = createSupabaseClient(_sbUrl, _sbKey, { auth: { persistSession: false } });
-  return _sbClient;
-}
-
-// Upload generated video blob to Supabase Storage and persist the public URL
-async function uploadVideoToSupabase(eventId, blob, apiBase) {
-  const sb = getBrowserSupabase();
-  if (!sb || !eventId) return null;
-  try {
-    const ext  = blob._ext || (blob.type?.includes('mp4') ? 'mp4' : 'webm');
-    const path = `${eventId}/video.${ext}`;
-    const { error: upErr } = await sb.storage
-      .from('story-videos')
-      .upload(path, blob, { contentType: blob.type || `video/${ext}`, upsert: true });
-    if (upErr) { console.warn('[video-upload]', upErr.message); return null; }
-
-    const { data: { publicUrl } } = sb.storage.from('story-videos').getPublicUrl(path);
-    if (!publicUrl) return null;
-
-    // Persist the URL in story_cache.video_url so it survives across sessions
-    await fetch(`${apiBase}/api/events/${eventId}/video-url`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoUrl: publicUrl }),
-    }).catch(() => {});
-
-    return publicUrl;
-  } catch (e) {
-    console.warn('[video-upload] failed:', e.message);
-    return null;
-  }
-}
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -140,11 +100,6 @@ function EventList({ events, selected, onSelect, query, setQuery, activeEra }) {
     <section className="events-panel panel">
       <div className="panel-title-row">
         <div><h2>Events</h2><p>{summary}</p></div>
-        <button type="button" className="icon-button" aria-label="Filter"><Filter size={15} /></button>
-      </div>
-      <div className="mini-search">
-        <Search size={14} aria-hidden />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search title, people, places…" />
       </div>
       <div className="event-list" ref={listRef}>
         {filtered.map((ev) => (
@@ -164,29 +119,13 @@ function EventList({ events, selected, onSelect, query, setQuery, activeEra }) {
 }
 
 /* ── Top Bar ─────────────────────────────────────────────────── */
-function TopBar({ storyMode, setStoryMode, workspace, onWorkspace }) {
+function TopBar() {
   return (
     <header className="topbar">
       <div>
         <h1>Bible Journey Map</h1>
         <span>Interactive atlas — real tiles, story markers &amp; journey routes</span>
       </div>
-      <div className="global-search">
-        <Search size={15} aria-hidden />
-        <input placeholder="Search events, people, places…" />
-      </div>
-      <div className="topbar-workspace-tabs" role="group" aria-label="Workspace">
-        <button type="button" onClick={() => onWorkspace('journey')} className={workspace === 'journey' ? 'active' : ''}>
-          <Map size={14} aria-hidden /> Map
-        </button>
-        <button type="button" onClick={() => onWorkspace('timeline')} className={workspace === 'timeline' ? 'active' : ''}>
-          <CalendarDays size={14} aria-hidden /> Timeline
-        </button>
-      </div>
-      <button type="button" onClick={() => setStoryMode(!storyMode)} className={`story-toggle${storyMode ? ' on' : ''}`} title="Toggle story overlay">
-        Story Mode <span aria-hidden />
-      </button>
-      <button type="button" className="icon-button" title="Settings" aria-label="Settings"><Settings size={17} /></button>
     </header>
   );
 }
@@ -469,52 +408,22 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
   const [videoCinema, setVideoCinema]     = useState(false);
 
   // Video generation state
-  const [videoStatus,   setVideoStatus]   = useState('idle'); // idle | uploading | making | ready | error
+  const [videoStatus,   setVideoStatus]   = useState('idle'); // idle | making | ready | error
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoUrl,      setVideoUrl]      = useState(null);
-  const [videoExt,      setVideoExt]      = useState('mp4');
+  const [videoExt,      setVideoExt]      = useState('webm');
   const videoRef = useRef(null);
 
   const videoSupported = isVideoSupported();
 
-  // Load video from Supabase Storage (first) then IndexedDB fallback when event changes
+  // Load saved video from IndexedDB when event changes
   useEffect(() => {
     setVideoUrl(null); setVideoStatus('idle'); setVideoProgress(0);
     if (!exportEventId) return;
-    let cancelled = false;
-
-    (async () => {
-      // 1. Story already carries a Supabase URL → verify it's alive then use it
-      if (story?.videoUrl) {
-        try {
-          const r = await fetch(story.videoUrl, { method: 'HEAD' });
-          if (!cancelled && r.ok) {
-            setVideoUrl(story.videoUrl); setVideoStatus('ready'); return;
-          }
-        } catch { /* fall through */ }
-      }
-      // 2. Ask the API in case the story object is stale
-      try {
-        const r = await fetch(`${apiBase}/api/events/${exportEventId}/video-url`);
-        if (!cancelled && r.ok) {
-          const { videoUrl: url } = await r.json();
-          if (url) {
-            const head = await fetch(url, { method: 'HEAD' }).catch(() => ({ ok: false }));
-            if (!cancelled && head.ok) {
-              setVideoUrl(url); setVideoStatus('ready'); return;
-            }
-          }
-        }
-      } catch { /* fall through */ }
-      // 3. Fall back to IndexedDB (device-local cache)
-      if (!cancelled) {
-        const rec = await loadVideoLocally(exportEventId).catch(() => null);
-        if (!cancelled && rec) { setVideoUrl(rec.url); setVideoExt(rec.ext || 'webm'); setVideoStatus('ready'); }
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [exportEventId, story?.videoUrl, apiBase]);
+    loadVideoLocally(exportEventId).then((rec) => {
+      if (rec) { setVideoUrl(rec.url); setVideoExt(rec.ext || 'webm'); setVideoStatus('ready'); }
+    });
+  }, [exportEventId]);
 
   // Auto-advance scenes slideshow (always runs so user sees all scenes)
   useEffect(() => {
@@ -567,35 +476,20 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
     }
   };
 
-  // Generate video client-side, then persist to Supabase Storage
+  // Generate MP4/WebM video client-side
   const handleMakeVideo = useCallback(async () => {
     if (!story) return;
     setVideoStatus('making'); setVideoProgress(0); setVideoUrl(null);
     try {
       const blob = await makeStoryVideo(story, (p) => setVideoProgress(Math.round(p * 100)));
-      const ext  = blob._ext || (blob.type?.includes('mp4') ? 'mp4' : 'webm');
-      setVideoExt(ext);
-
-      // Show video immediately via object URL while the upload happens
-      const localUrl = URL.createObjectURL(blob);
-      setVideoUrl(localUrl); setVideoStatus('ready');
-
-      // Save locally (IndexedDB) so it survives offline
-      await saveVideoLocally(exportEventId || story.eventId, blob).catch(() => {});
-
-      // Upload to Supabase Storage so any device/session can load it next time
-      setVideoStatus('uploading');
-      const remoteUrl = await uploadVideoToSupabase(exportEventId || story.eventId, blob, apiBase);
-      if (remoteUrl) {
-        // Swap to the permanent remote URL so the video persists across sessions
-        setVideoUrl(remoteUrl);
-      }
-      setVideoStatus('ready');
+      const url  = URL.createObjectURL(blob);
+      setVideoUrl(url); setVideoExt(blob._ext || 'webm'); setVideoStatus('ready');
+      await saveVideoLocally(exportEventId || story.eventId, blob);
     } catch (err) {
       console.error('[video]', err);
       setVideoStatus('error');
     }
-  }, [story, exportEventId, apiBase]);
+  }, [story, exportEventId]);
 
   const handleDownload = () => {
     if (!videoUrl) return;
@@ -615,12 +509,7 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
         <div className="player-left">
           <div className="player-icon"><Sparkles size={22} aria-hidden /></div>
           <div>
-            <h3>AI Story Video
-            {cached && <span className="story-cached-badge" title="Story loaded from Supabase">✓ Saved</span>}
-            {videoStatus === 'ready' && videoUrl?.startsWith('http') && (
-              <span className="story-cached-badge story-cached-badge--video" title="Video stored in Supabase — loads instantly on any device">☁ Video cached</span>
-            )}
-          </h3>
+            <h3>AI Story Video {cached && <span className="story-cached-badge" title="Loaded from Supabase">✓ Saved</span>}</h3>
             <p>Gemini · illustrated scenes + narration</p>
           </div>
         </div>
@@ -659,10 +548,6 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
             ) : videoStatus === 'making' ? (
               <button type="button" className="primary story-make-video-btn" disabled>
                 <Loader2 size={15} className="spin" /> Rendering… {videoProgress}%
-              </button>
-            ) : videoStatus === 'uploading' ? (
-              <button type="button" className="primary story-make-video-btn" disabled>
-                <Loader2 size={15} className="spin" /> Saving to cloud…
               </button>
             ) : (
               <>
@@ -714,21 +599,15 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
         )}
       </div>
 
-      {/* ── Rendering / upload progress bar (full-width, below toolbar) ── */}
-      {(videoStatus === 'making' || videoStatus === 'uploading') && (
+      {/* ── Rendering progress bar (full-width, below toolbar) ── */}
+      {videoStatus === 'making' && (
         <div className="story-video-progress story-video-progress--banner">
           <Loader2 size={16} className="spin" />
           <div style={{ flex: 1 }}>
-            {videoStatus === 'making' ? (
-              <span>Rendering video with transitions… {videoProgress}%
-                {videoProgress < 8 && <span style={{ opacity: 0.65 }}>&nbsp;(~{estimateVideoDuration(story)}s — keep tab visible)</span>}
-              </span>
-            ) : (
-              <span>Saving video to cloud — will load instantly next time…</span>
-            )}
-            <div className="story-video-progress__bar">
-              <div style={{ width: videoStatus === 'uploading' ? '100%' : `${videoProgress}%`, transition: 'width 0.3s' }} />
-            </div>
+            <span>Rendering video with transitions… {videoProgress}%
+              {videoProgress < 8 && <span style={{ opacity: 0.65 }}>&nbsp;(~{estimateVideoDuration(story)}s — keep tab visible)</span>}
+            </span>
+            <div className="story-video-progress__bar"><div style={{ width: `${videoProgress}%` }} /></div>
           </div>
         </div>
       )}
@@ -1017,7 +896,7 @@ export default function BibleJourneyApp() {
       )}
 
       {/* Top bar */}
-      <TopBar storyMode={storyMode} setStoryMode={setStoryMode} workspace={workspace} onWorkspace={setWorkspace} />
+      <TopBar />
 
       {/* Body */}
       <div className="bjm-body">
