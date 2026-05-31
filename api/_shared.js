@@ -8,8 +8,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // ── Models ────────────────────────────────────────────────────────────────────
 export const TEXT_MODEL  = process.env.GEMINI_TEXT_MODEL  || 'gemini-2.5-flash';
-// gemini-2.0-flash-exp-image-generation is the confirmed model that supports IMAGE responseModality
-export const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp-image-generation';
+// gemini-3.1-flash-image supports IMAGE responseModality via generateContent
+export const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
 export const TTS_MODEL   = process.env.GEMINI_TTS_MODEL   || 'gemini-2.5-flash-preview-tts';
 export const TTS_VOICE   = process.env.GEMINI_TTS_VOICE   || 'Kore';
 

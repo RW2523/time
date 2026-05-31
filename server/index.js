@@ -18,7 +18,7 @@ const GENERATED_DIR = path.join(__dirname, 'generated');
 const PORT = Number(process.env.PORT || 8787);
 
 const TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash';
-const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp-image-generation';
+const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
 const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
 const TTS_VOICE = process.env.GEMINI_TTS_VOICE || 'Kore';
 
