@@ -157,7 +157,7 @@ function TabBar({ activeTab, setActiveTab, selected }) {
     { id: 'info',   icon: <BookOpen size={14} />,  label: 'Info'   },
     { id: 'family', icon: <TreePine size={14} />,  label: 'Family' },
     { id: 'people', icon: <Users size={14} />,     label: 'People' },
-    { id: 'story',  icon: <Sparkles size={14} />,  label: 'Story'  },
+    { id: 'story',  icon: <Film size={14} />,        label: 'Video'  },
   ];
   return (
     <nav className="bjm-tab-bar" aria-label="Content tabs">
