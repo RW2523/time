@@ -622,6 +622,10 @@ button { cursor: pointer; }
   border: 1px solid #6ee7b7; border-radius: 99px;
   padding: 1px 7px; margin-left: 6px; vertical-align: middle;
 }
+.story-cached-badge--video {
+  background: #dbeafe; color: #1e40af;
+  border-color: #93c5fd;
+}
 
 /* ── Video player ─────────────────────────────────────────────── */
 .story-video-player {

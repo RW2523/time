@@ -161,11 +161,12 @@ async function loadFromSupabase(sb, eventId) {
   try {
     const { data, error } = await sb
       .from('story_cache')
-      .select('story_data, generated_at, scene_count, has_audio')
+      .select('story_data, generated_at, scene_count, has_audio, video_url')
       .eq('event_id', eventId)
       .single();
     if (error || !data) return null;
-    return data.story_data;
+    // Merge video_url into the story object so clients can skip rendering
+    return { ...data.story_data, videoUrl: data.video_url || null };
   } catch {
     return null;
   }
