@@ -525,91 +525,13 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
         <button type="button" className="story-player__cinema-close" onClick={exitCinema} aria-label="Exit fullscreen"><X size={22} /></button>
       )}
 
-      {/* ── Video player (shown when video is ready) ── */}
-      {videoStatus === 'ready' && videoUrl && (
-        <div className="story-video-player">
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            controls
-            autoPlay
-            loop
-            playsInline
-            className="story-video-player__video"
-            aria-label={`${story?.title || 'Story'} video`}
-          />
-          <div className="story-video-player__overlay-btns">
-            <button type="button" className="secondary story-cinema-toggle" onClick={videoCinema ? exitCinema : enterCinema}>
-              {videoCinema ? <><Minimize2 size={15} /> Exit</> : <><Maximize2 size={15} /> Fullscreen</>}
-            </button>
-            <button type="button" className="secondary" onClick={handleDownload}>
-              <Download size={15} /> Download
-            </button>
-            <button type="button" className="secondary" onClick={() => setVideoStatus('idle')}>
-              <Film size={15} /> Scenes view
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Scene slideshow (shown when no video yet) ── */}
-      {videoStatus !== 'ready' && story && (
-        <figure className={`story-theater${loading ? ' story-theater--busy' : ''}`}>
-          <div className="story-theater__frame">
-            {imgSrc
-              ? <img src={imgSrc} alt={scene?.title || story.title} key={sceneIndex} className="story-theater__scene-img" />
-              : <div className="story-theater__placeholder">Preparing scene…</div>}
-            <div className="story-theater__shade" aria-hidden />
-            <figcaption className="story-theater__caption">
-              <span className="story-theater__badge">Scene {sceneIndex + 1} of {story.scenes.length}</span>
-              <strong>{scene?.title || `Scene ${sceneIndex + 1}`}</strong>
-              {scene?.narration && <p>{scene.narration}</p>}
-            </figcaption>
-          </div>
-          {loading && <div className="story-theater__loading" role="status">Updating story…</div>}
-          {/* Video generation progress */}
-          {videoStatus === 'making' && (
-            <div className="story-video-progress">
-              <Loader2 size={18} className="spin" />
-              <div style={{ flex: 1 }}>
-                <span>Rendering video… {videoProgress}% &nbsp;
-                  {story && videoProgress < 10 && (
-                    <span style={{ opacity: 0.7 }}>
-                      (~{estimateVideoDuration(story)}s — keep this tab open)
-                    </span>
-                  )}
-                </span>
-                <div className="story-video-progress__bar"><div style={{ width: `${videoProgress}%` }} /></div>
-              </div>
-            </div>
-          )}
-          {videoStatus === 'error' && (
-            <div className="story-video-progress story-video-progress--error">
-              Video creation failed — check browser console, then try again
-            </div>
-          )}
-          <div className="story-theater__scenes">
-            {story.scenes.map((_, i) => (
-              <button key={i} type="button"
-                className={`story-theater__tick${i === sceneIndex ? ' active' : ''}${i < sceneIndex ? ' done' : ''}`}
-                onClick={() => setSceneIndex(i)} aria-label={`Scene ${i + 1}`} />
-            ))}
-          </div>
-          {audioDuration > 0 && (
-            <div className="story-theater__bar" aria-hidden>
-              <div className="story-theater__bar-fill" style={{ width: `${audioProgress}%` }} />
-            </div>
-          )}
-        </figure>
-      )}
-
-      {/* ── Toolbar ── */}
-      <div className="player-toolbar">
+      {/* ── TOOLBAR at TOP — always the first thing visible, no scrolling needed ── */}
+      <div className="player-toolbar player-toolbar--top">
         <div className="player-left">
           <div className="player-icon"><Sparkles size={22} aria-hidden /></div>
           <div>
             <h3>AI Story Video {cached && <span className="story-cached-badge" title="Loaded from Supabase">✓ Saved</span>}</h3>
-            <p>Gemini builds illustrated scenes and narration.</p>
+            <p>Gemini · illustrated scenes + narration</p>
           </div>
         </div>
 
@@ -618,8 +540,8 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
             {/* Audio play/pause — only if TTS was generated */}
             {audioSrc ? (
               <>
-                <button type="button" className="primary" onClick={toggleAudio}>
-                  {playing ? <><Pause size={16} /> Pause</> : <><Play size={16} /> Play narration</>}
+                <button type="button" className="secondary" onClick={toggleAudio}>
+                  {playing ? <><Pause size={15} /> Pause</> : <><Play size={15} /> Narration</>}
                 </button>
                 <audio ref={audioRef} src={audioSrc}
                   onLoadedMetadata={(e) => { const d = e.currentTarget.duration; if (d && isFinite(d)) setAudioDuration(d); }}
@@ -633,16 +555,16 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
               </span>
             )}
 
-            {/* Create / Download video button group */}
+            {/* ── Create / Download video — the primary CTA ── */}
             {!videoSupported ? (
               <span className="story-video-unsupported" title="Use Chrome or Edge for video generation">
                 <Film size={15} /> Video: use Chrome/Edge
               </span>
             ) : videoStatus === 'idle' || videoStatus === 'error' ? (
               <button type="button" className="primary story-make-video-btn"
-                onClick={handleMakeVideo} disabled={loading || videoStatus === 'making'}
-                title={`Render a ~${estimateVideoDuration(story)}s video with transitions${audioSrc ? ' + narration audio' : ''} — keep this tab visible`}>
-                <Film size={15} /> Create video (~{estimateVideoDuration(story)}s)
+                onClick={handleMakeVideo} disabled={loading}
+                title={`Render a ~${estimateVideoDuration(story)}s video with Ken Burns transitions${audioSrc ? ' + narration audio' : ''} — keep this tab visible`}>
+                <Film size={15} /> Create Video
               </button>
             ) : videoStatus === 'making' ? (
               <button type="button" className="primary story-make-video-btn" disabled>
@@ -661,11 +583,13 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
             )}
 
             {/* Scene stepper */}
-            <div className="scene-stepper" role="tablist">
-              {story.scenes.map((s, i) => (
-                <button type="button" key={s.title + i} className={i === sceneIndex ? 'active' : ''} onClick={() => setSceneIndex(i)}>{i + 1}</button>
-              ))}
-            </div>
+            {videoStatus !== 'ready' && (
+              <div className="scene-stepper" role="tablist">
+                {story.scenes.map((s, i) => (
+                  <button type="button" key={s.title + i} className={i === sceneIndex ? 'active' : ''} onClick={() => setSceneIndex(i)}>{i + 1}</button>
+                ))}
+              </div>
+            )}
 
             {/* New version */}
             <button type="button" className="secondary story-regenerate" onClick={onRegenerate} disabled={loading}>
@@ -695,6 +619,78 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
           </button>
         )}
       </div>
+
+      {/* ── Rendering progress bar (full-width, below toolbar) ── */}
+      {videoStatus === 'making' && (
+        <div className="story-video-progress story-video-progress--banner">
+          <Loader2 size={16} className="spin" />
+          <div style={{ flex: 1 }}>
+            <span>Rendering video with transitions… {videoProgress}%
+              {videoProgress < 8 && <span style={{ opacity: 0.65 }}>&nbsp;(~{estimateVideoDuration(story)}s — keep tab visible)</span>}
+            </span>
+            <div className="story-video-progress__bar"><div style={{ width: `${videoProgress}%` }} /></div>
+          </div>
+        </div>
+      )}
+      {videoStatus === 'error' && (
+        <div className="story-video-progress story-video-progress--error story-video-progress--banner">
+          ⚠ Video creation failed — open DevTools console for details, then try again
+        </div>
+      )}
+
+      {/* ── Video player (shown when video is ready) — replaces slideshow ── */}
+      {videoStatus === 'ready' && videoUrl && (
+        <div className="story-video-player">
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            controls
+            autoPlay
+            loop
+            playsInline
+            className="story-video-player__video"
+            aria-label={`${story?.title || 'Story'} video`}
+          />
+          <div className="story-video-player__overlay-btns">
+            <button type="button" className="secondary story-cinema-toggle" onClick={videoCinema ? exitCinema : enterCinema}>
+              {videoCinema ? <><Minimize2 size={15} /> Exit</> : <><Maximize2 size={15} /> Fullscreen</>}
+            </button>
+            <button type="button" className="secondary" onClick={() => setVideoStatus('idle')}>
+              <Film size={15} /> Scenes
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Scene slideshow (shown while no video / video not ready) ── */}
+      {videoStatus !== 'ready' && story && (
+        <figure className={`story-theater${loading ? ' story-theater--busy' : ''}`}>
+          <div className="story-theater__frame">
+            {imgSrc
+              ? <img src={imgSrc} alt={scene?.title || story.title} key={sceneIndex} className="story-theater__scene-img" />
+              : <div className="story-theater__placeholder">Preparing scene…</div>}
+            <div className="story-theater__shade" aria-hidden />
+            <figcaption className="story-theater__caption">
+              <span className="story-theater__badge">Scene {sceneIndex + 1} of {story.scenes.length}</span>
+              <strong>{scene?.title || `Scene ${sceneIndex + 1}`}</strong>
+              {scene?.narration && <p>{scene.narration}</p>}
+            </figcaption>
+          </div>
+          {loading && <div className="story-theater__loading" role="status">Updating story…</div>}
+          <div className="story-theater__scenes">
+            {story.scenes.map((_, i) => (
+              <button key={i} type="button"
+                className={`story-theater__tick${i === sceneIndex ? ' active' : ''}${i < sceneIndex ? ' done' : ''}`}
+                onClick={() => setSceneIndex(i)} aria-label={`Scene ${i + 1}`} />
+            ))}
+          </div>
+          {audioDuration > 0 && (
+            <div className="story-theater__bar" aria-hidden>
+              <div className="story-theater__bar-fill" style={{ width: `${audioProgress}%` }} />
+            </div>
+          )}
+        </figure>
+      )}
     </section>
   );
 }
@@ -940,7 +936,7 @@ export default function BibleJourneyApp() {
             </aside>
 
             {/* Right canvas: small map + tabs + content */}
-            <div className="bjm-canvas">
+            <div className="bjm-canvas" data-active-tab={activeTab}>
 
               {/* Persistent small map */}
               <div className="bjm-map-strip">
