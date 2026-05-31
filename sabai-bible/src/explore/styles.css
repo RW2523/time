@@ -648,6 +648,16 @@ button { cursor: pointer; }
   padding: 0 8px; white-space: nowrap;
 }
 
+/* ── No narration badge (TTS generation failed or skipped) ──── */
+.story-no-audio {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: rgba(255,255,255,0.38);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px; padding: 4px 10px; white-space: nowrap;
+  cursor: default;
+}
+
 /* ── Video progress bar ───────────────────────────────────────── */
 .story-video-progress {
   display: flex; align-items: center; gap: 10px;

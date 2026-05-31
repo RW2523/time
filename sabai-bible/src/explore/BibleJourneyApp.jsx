@@ -615,8 +615,8 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
 
         {story ? (
           <div className="player-actions">
-            {/* Audio play/pause */}
-            {audioSrc && (
+            {/* Audio play/pause — only if TTS was generated */}
+            {audioSrc ? (
               <>
                 <button type="button" className="primary" onClick={toggleAudio}>
                   {playing ? <><Pause size={16} /> Pause</> : <><Play size={16} /> Play narration</>}
@@ -627,9 +627,13 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
                   onEnded={() => { setPlaying(false); setAudioProgress(0); setSceneIndex(0); }}
                 />
               </>
+            ) : (
+              <span className="story-no-audio" title="TTS narration was not generated — video will be visual-only">
+                🔇 No narration
+              </span>
             )}
 
-            {/* Create video button */}
+            {/* Create / Download video button group */}
             {!videoSupported ? (
               <span className="story-video-unsupported" title="Use Chrome or Edge for video generation">
                 <Film size={15} /> Video: use Chrome/Edge
@@ -637,7 +641,7 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
             ) : videoStatus === 'idle' || videoStatus === 'error' ? (
               <button type="button" className="primary story-make-video-btn"
                 onClick={handleMakeVideo} disabled={loading || videoStatus === 'making'}
-                title={`Renders a ~${estimateVideoDuration(story)}s video — keep this tab visible`}>
+                title={`Render a ~${estimateVideoDuration(story)}s video with transitions${audioSrc ? ' + narration audio' : ''} — keep this tab visible`}>
                 <Film size={15} /> Create video (~{estimateVideoDuration(story)}s)
               </button>
             ) : videoStatus === 'making' ? (
@@ -645,10 +649,15 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
                 <Loader2 size={15} className="spin" /> Rendering… {videoProgress}%
               </button>
             ) : (
-              <button type="button" className="secondary story-make-video-btn"
-                onClick={() => { setVideoStatus('idle'); handleMakeVideo(); }}>
-                <Film size={15} /> Re-create video
-              </button>
+              <>
+                <button type="button" className="primary story-make-video-btn" onClick={handleDownload}>
+                  <Download size={15} /> Download {videoExt.toUpperCase()}
+                </button>
+                <button type="button" className="secondary story-make-video-btn"
+                  onClick={() => { setVideoStatus('idle'); handleMakeVideo(); }}>
+                  <Film size={15} /> Re-create
+                </button>
+              </>
             )}
 
             {/* Scene stepper */}

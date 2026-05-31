@@ -108,11 +108,17 @@ async function generateAudio(ai, narration) {
     const parts   = r?.candidates?.[0]?.content?.parts || r?.parts || [];
     const audPart = parts.find((p) => p.inlineData || p.inline_data);
     const inline  = audPart?.inlineData || audPart?.inline_data;
-    if (!inline?.data) return null;
+    if (!inline?.data) {
+      console.warn('[tts] no audio data in response. Parts:', JSON.stringify((parts || []).map((p) => ({ keys: Object.keys(p) }))));
+      return null;
+    }
     let buf = Buffer.from(inline.data, 'base64');
     const mime = inline.mimeType || inline.mime_type || '';
     if (!mime.includes('wav') && !buf.subarray(0, 4).equals(Buffer.from('RIFF'))) {
-      buf = buildWav(buf);
+      // Parse sample rate from mimeType (e.g. 'audio/pcm;rate=24000' or 'audio/L16;rate=22050')
+      const rateMatch = mime.match(/rate=(\d+)/i);
+      const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+      buf = buildWav(buf, { sampleRate });
     }
     return `data:audio/wav;base64,${buf.toString('base64')}`;
   } catch (e) {

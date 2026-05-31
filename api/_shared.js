@@ -8,7 +8,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // ── Models ────────────────────────────────────────────────────────────────────
 export const TEXT_MODEL  = process.env.GEMINI_TEXT_MODEL  || 'gemini-2.5-flash';
-export const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image'; // confirmed working
+// gemini-2.0-flash-exp-image-generation is the confirmed model that supports IMAGE responseModality
+export const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp-image-generation';
 export const TTS_MODEL   = process.env.GEMINI_TTS_MODEL   || 'gemini-2.5-flash-preview-tts';
 export const TTS_VOICE   = process.env.GEMINI_TTS_VOICE   || 'Kore';
 
@@ -20,20 +21,26 @@ export function getAI() {
 
 // ── Supabase client ───────────────────────────────────────────────────────────
 export function getSupabase() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  let url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_KEY
            || process.env.SUPABASE_ANON_KEY
            || process.env.VITE_SUPABASE_ANON_KEY
            || '';
+
+  // Normalize URL: the Supabase JS client expects just the project base URL
+  // (https://<project>.supabase.co).  Strip any accidental /rest/v1/ path suffix
+  // that might be copied from the Supabase dashboard's REST endpoint.
+  url = url.trim().replace(/\/rest\/v1(\/.*)?$/, '').replace(/\/$/, '');
+
   // Require a properly-formed Supabase project URL (https://<project>.supabase.co)
-  const validUrl = url && /^https:\/\/[a-z0-9]+\.supabase\.co/.test(url.trim());
+  const validUrl = url && /^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url);
   if (!validUrl || !key) {
     if (url && !validUrl) {
-      console.warn('[supabase] SUPABASE_URL looks invalid — expected https://<project>.supabase.co. Skipping Supabase.');
+      console.warn('[supabase] SUPABASE_URL looks invalid — expected https://<project>.supabase.co (no path). Skipping Supabase.');
     }
     return null;
   }
-  return createClient(url.trim(), key.trim(), { auth: { persistSession: false } });
+  return createClient(url, key.trim(), { auth: { persistSession: false } });
 }
 
 // ── Data ──────────────────────────────────────────────────────────────────────

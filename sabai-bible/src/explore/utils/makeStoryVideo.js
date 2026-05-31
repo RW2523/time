@@ -245,13 +245,21 @@ export async function makeStoryVideo(story, onProgress) {
     throw new Error('Your browser does not support canvas video capture (MediaRecorder / captureStream). Try Chrome or Edge.');
   }
 
-  // 1. Load images
+  // 1a. Create AudioContext SYNCHRONOUSLY before any await so the browser does not
+  //     suspend it (Chrome/Edge autoplay policy only allows AudioContext in a direct
+  //     user-gesture handler; any await before creation causes suspension → no audio).
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioCtx();
+
+  // 1b. Load images
   onProgress?.(0.02);
   const images = await Promise.all((story.scenes || []).map((s) => loadImg(s.imageUrl)));
   onProgress?.(0.08);
 
-  // 2. Set up audio
-  const audioCtx    = new AudioContext();
+  // 2. Set up audio — resume context in case it was suspended (e.g. Safari)
+  if (audioCtx.state === 'suspended') {
+    try { await audioCtx.resume(); } catch { /* non-fatal */ }
+  }
   const audioBuffer = await decodeAudio(story.audioUrl, audioCtx);
   const audioDur    = audioBuffer?.duration || 0;
 
@@ -304,11 +312,15 @@ export async function makeStoryVideo(story, onProgress) {
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    let bgInterval = null;
+    let safetyTimer = null;
+
     const settle = (fn) => {
       if (settled) return;
       settled = true;
+      clearInterval(bgInterval);
       clearTimeout(safetyTimer);
-      audioCtx.close();
+      audioCtx.close().catch(() => {});
       fn();
     };
 
@@ -323,8 +335,7 @@ export async function makeStoryVideo(story, onProgress) {
     recorder.onerror = (e) => settle(() => reject(new Error(e?.error?.message || 'MediaRecorder error')));
 
     // Safety net: force-stop after totalDur + 10 seconds regardless of animation state
-    // This ensures the video always completes even if the tab is backgrounded
-    const safetyTimer = setTimeout(() => {
+    safetyTimer = setTimeout(() => {
       console.warn('[video] safety timeout fired — stopping recorder');
       if (recorder.state !== 'inactive') recorder.stop();
     }, (totalDur + 10) * 1000);
@@ -354,22 +365,14 @@ export async function makeStoryVideo(story, onProgress) {
     }
 
     // setInterval fires even in background tabs (Chrome throttles to ~1fps, still works)
-    const bgInterval = setInterval(() => {
+    bgInterval = setInterval(() => {
       const elapsed = (performance.now() - startWall) / 1000;
       drawFrame(ctx2d, { elapsed, totalDur, segments }, story, images);
       onProgress?.(0.1 + 0.88 * clamp(elapsed / totalDur, 0, 1));
       if (elapsed >= totalDur + 0.3) {
-        clearInterval(bgInterval);
         if (recorder.state !== 'inactive') recorder.stop();
       }
     }, 1000); // once per second fallback to keep canvas updating in background
-
-    // Clean up interval when recorder stops
-    const origOnStop = recorder.onstop;
-    recorder.onstop = (e) => {
-      clearInterval(bgInterval);
-      origOnStop(e);
-    };
 
     requestAnimationFrame(tick);
   });

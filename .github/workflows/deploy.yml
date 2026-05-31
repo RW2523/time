@@ -21,6 +21,8 @@ on:
 defaults:
   run:
     working-directory: sabai-bible
+    # NOTE: deploy steps below override working-directory to repo root so that
+    # root vercel.json (which includes /api serverless functions) is used.
 
 jobs:
   # ── 1. Lint / Type-check ────────────────────────────────────────────────────
@@ -86,10 +88,13 @@ jobs:
           node-version: 20
 
       - name: Install Vercel CLI
+        # Run from repo root — root vercel.json includes both sabai-bible/dist AND /api functions
+        working-directory: .
         run: npm install -g vercel@latest
 
       - name: Deploy preview to Vercel
-        working-directory: sabai-bible
+        # Must run from repo root so vercel.json at root is picked up (includes /api routes)
+        working-directory: .
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -112,10 +117,12 @@ jobs:
           node-version: 20
 
       - name: Install Vercel CLI
+        working-directory: .
         run: npm install -g vercel@latest
 
       - name: Deploy production to Vercel
-        working-directory: sabai-bible
+        # Must run from repo root so vercel.json at root is picked up (includes /api routes)
+        working-directory: .
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

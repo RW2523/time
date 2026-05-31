@@ -18,7 +18,7 @@ const GENERATED_DIR = path.join(__dirname, 'generated');
 const PORT = Number(process.env.PORT || 8787);
 
 const TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash';
-const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp-image-generation';
 const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
 const TTS_VOICE = process.env.GEMINI_TTS_VOICE || 'Kore';
 
@@ -224,7 +224,10 @@ async function generateImage(prompt, outFile) {
     () =>
       ai.models.generateContent({
         model: IMAGE_MODEL,
-        contents: safePrompt
+        contents: safePrompt,
+        config: {
+          responseModalities: ['IMAGE', 'TEXT']
+        }
       }),
     'generateImage'
   );
@@ -264,7 +267,9 @@ async function generateTts(text, outFile) {
   let audioBuffer = Buffer.from(inline.data, 'base64');
   const mime = inline.mimeType || inline.mime_type || '';
   if (!mime.includes('wav') && !audioBuffer.subarray(0, 4).equals(Buffer.from('RIFF'))) {
-    audioBuffer = buildWav(audioBuffer);
+    const rateMatch = mime.match(/rate=(\d+)/i);
+    const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+    audioBuffer = buildWav(audioBuffer, { sampleRate });
   }
   await fs.writeFile(outFile, audioBuffer);
   return true;
