@@ -51,7 +51,7 @@ export default function HeroSection({ onNotify, onLaunchMap }: HeroSectionProps)
             }`}>
               <Sparkles className="w-3.5 h-3.5 animate-pulse" />
               <span className="text-[10px] font-extrabold font-mono tracking-wider uppercase">
-                Built for believers — growing for leaders
+                AI-Powered Bible Exploration
               </span>
             </div>
 
@@ -59,9 +59,9 @@ export default function HeroSection({ onNotify, onLaunchMap }: HeroSectionProps)
             <h1 className={`font-display font-black text-4xl sm:text-5xl md:text-5xl lg:text-5xl leading-tight tracking-tight mb-4 ${
               theme === 'dark' ? 'text-white' : 'text-[#0B192C]'
             }`}>
-              Teach. Preach. Reach. <br />
+              Map Every Bible Journey. <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-600 to-amber-500">
-                Powered by Scripture and AI.
+                Understand Scripture Deeply.
               </span>
             </h1>
 
@@ -69,7 +69,7 @@ export default function HeroSection({ onNotify, onLaunchMap }: HeroSectionProps)
             <p className={`text-sm sm:text-base leading-relaxed mb-8 max-w-lg ${
               theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
             }`}>
-              SabAI Bible is built for shared believers — and is extending to empower Pastors and Teaching Mentors to visualize, create, and share Scripture with their congregation and beyond.
+              SabAI Bible brings Scripture to life through interactive journey maps, historical timelines, and AI-powered study. Explore biblical events, ask questions, and visualize the stories behind every verse.
             </p>
 
             {/* Actions */}
@@ -105,7 +105,7 @@ export default function HeroSection({ onNotify, onLaunchMap }: HeroSectionProps)
               <span className={`text-[11px] font-mono font-bold uppercase tracking-wider ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                Live interactive Bible Journey Map — try it now
+                Interactive maps · AI chat · Video stories — live now
               </span>
             </div>
           </motion.div>
