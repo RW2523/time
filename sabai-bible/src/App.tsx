@@ -3,18 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { lazy, Suspense, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import ProductFeatures from './components/ProductFeatures';
-import AIChatSection from './components/AIChatSection';
 import StudyPlansSection from './components/StudyPlansSection';
 import CommunitySection from './components/CommunitySection';
 import UserPersonas from './components/UserPersonas';
 import TrustResponsibility from './components/TrustResponsibility';
 import ContactSection from './components/ContactSection';
 import Footer from './components/Footer';
-import { Map, X } from 'lucide-react';
+import { Map, X, CheckCircle2 } from 'lucide-react';
 
 import { ThemeProvider, useTheme } from './ThemeContext';
 
@@ -97,12 +96,39 @@ function MapModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* ─── Toast notification ────────────────────────────────────────────────── */
+interface Toast { id: number; msg: string; }
+
+function ToastStack({ toasts }: { toasts: Toast[] }) {
+  if (!toasts.length) return null;
+  return (
+    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 items-end pointer-events-none">
+      {toasts.map(t => (
+        <div key={t.id}
+          className="flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs font-bold pointer-events-none"
+          style={{ background: '#0B192C', borderColor: 'rgba(51,65,85,0.7)', color: '#e2e8f0', maxWidth: 280 }}
+        >
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─── Main app ─────────────────────────────────────────────────────────── */
 function AppContent() {
   const { theme } = useTheme();
   const [mapOpen, setMapOpen] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastId = useRef(0);
 
-  const triggerToast = (_msg: string) => {};
+  const triggerToast = (msg: string) => {
+    const id = ++toastId.current;
+    setToasts(prev => [...prev.slice(-3), { id, msg }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  };
+
   const handleLaunchMap = () => setMapOpen(true);
 
   return (
@@ -118,25 +144,22 @@ function AppContent() {
         {/* 1. Hero */}
         <HeroSection onNotify={triggerToast} onLaunchMap={handleLaunchMap} />
 
-        {/* 2. Expandable Product Promise + Feature Pillars */}
+        {/* 2. Product feature walkthrough */}
         <ProductFeatures onNotify={triggerToast} />
 
-        {/* 3. AI Chat */}
-        <AIChatSection onNotify={triggerToast} />
-
-        {/* 4. Guided Study Plans */}
+        {/* 3. Guided Study Plans */}
         <StudyPlansSection onNotify={triggerToast} />
 
-        {/* 5. Community Feed */}
+        {/* 4. Community Feed */}
         <CommunitySection onNotify={triggerToast} />
 
-        {/* 6. User Personas interactive sandbox */}
+        {/* 5. User Personas — Believers, Pastors, Teaching Mentors */}
         <UserPersonas onNotify={triggerToast} />
 
-        {/* 7. Trust */}
+        {/* 6. Trust & Responsibility */}
         <TrustResponsibility />
 
-        {/* 8. Contact / Early Access */}
+        {/* 7. Contact / Early Access */}
         <ContactSection />
       </main>
 
@@ -144,6 +167,9 @@ function AppContent() {
 
       {/* Full-screen Bible Journey Map modal */}
       {mapOpen && <MapModal onClose={() => setMapOpen(false)} />}
+
+      {/* Toast notifications */}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }

@@ -51,7 +51,7 @@ export default function HeroSection({ onNotify, onLaunchMap }: HeroSectionProps)
             }`}>
               <Sparkles className="w-3.5 h-3.5 animate-pulse" />
               <span className="text-[10px] font-extrabold font-mono tracking-wider uppercase">
-                A NEW ERA OF BIBLE RESEARCH
+                Built for believers — growing for leaders
               </span>
             </div>
 
@@ -59,9 +59,9 @@ export default function HeroSection({ onNotify, onLaunchMap }: HeroSectionProps)
             <h1 className={`font-display font-black text-4xl sm:text-5xl md:text-5xl lg:text-5xl leading-tight tracking-tight mb-4 ${
               theme === 'dark' ? 'text-white' : 'text-[#0B192C]'
             }`}>
-              Study the Bible with <br />
+              Teach. Preach. Reach. <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-600 to-amber-500">
-                clarity, context, and AI.
+                Powered by Scripture and AI.
               </span>
             </h1>
 
@@ -69,7 +69,7 @@ export default function HeroSection({ onNotify, onLaunchMap }: HeroSectionProps)
             <p className={`text-sm sm:text-base leading-relaxed mb-8 max-w-lg ${
               theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
             }`}>
-              SabAI Bible helps you read Scripture, ask questions, visualize stories, create learning content, follow study plans, and grow with your community.
+              SabAI Bible is built for shared believers — and is extending to empower Pastors and Teaching Mentors to visualize, create, and share Scripture with their congregation and beyond.
             </p>
 
             {/* Actions */}
@@ -101,11 +101,11 @@ export default function HeroSection({ onNotify, onLaunchMap }: HeroSectionProps)
 
             {/* Brand Promise Mini Tag */}
             <div className="mt-8 flex items-center gap-2 opacity-80">
-              <span className={`w-2 h-2 rounded-full bg-emerald-500`} />
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <span className={`text-[11px] font-mono font-bold uppercase tracking-wider ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                Fully functional online sandbox preview
+                Live interactive Bible Journey Map — try it now
               </span>
             </div>
           </motion.div>
