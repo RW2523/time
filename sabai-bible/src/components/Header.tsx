@@ -37,10 +37,10 @@ export default function Header({ onNotify, onLaunchMap }: HeaderProps) {
 
   const navLinks = [
     { label: 'Features', id: 'features' },
-    { label: 'Explore', id: 'explore-section' },
-    { label: 'Chat', id: 'chat-section' },
-    { label: 'Plans', id: 'plans-section' },
+    { label: 'Study Plans', id: 'plans-section' },
     { label: 'Community', id: 'community-section' },
+    { label: 'For Leaders', id: 'persona-universe' },
+    { label: 'Contact', id: 'contact' },
   ];
 
   return (

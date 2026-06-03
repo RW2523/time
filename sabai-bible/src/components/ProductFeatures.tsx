@@ -175,7 +175,7 @@ export default function ProductFeatures({ onNotify }: ProductFeaturesProps) {
   const activeStep = steps.find(s => s.id === active)!;
 
   return (
-    <section className={`py-20 relative overflow-hidden transition-colors duration-500 border-b ${
+    <section id="features" className={`py-20 relative overflow-hidden transition-colors duration-500 border-b ${
       theme === 'dark' ? 'bg-[#0B192C] border-slate-800' : 'bg-white border-stone-150'
     }`}>
       {/* Ambient */}
