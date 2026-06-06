@@ -1,16 +1,18 @@
 /**
  * makeStoryVideo — client-side video generation
- * Creates a professional HD video from a story manifest (images + TTS audio).
- * Uses Canvas API for rendering and MediaRecorder for capture.
- * Output: WebM or MP4 Blob depending on browser support.
+ * Supports two formats:
+ *   'landscape' — 1280×720 (16:9)  standard horizontal video
+ *   'reels'     — 1080×1920 (9:16) vertical short-form reel
+ *
+ * Uses Canvas API + MediaRecorder + Web Audio API.
+ * Output: WebM or MP4 Blob.
  */
 
-const W = 1280;
-const H = 720;
-const FPS = 30;
-const TRANSITION_S = 0.6;  // crossfade duration between scenes
-const INTRO_S = 2.5;        // intro title card duration
-const OUTRO_S = 2.0;        // outro card duration
+// ── Format configs ─────────────────────────────────────────────────────────────
+const FORMATS = {
+  landscape: { W: 1280, H: 720,  FPS: 30, TRANSITION_S: 0.6, INTRO_S: 2.5, OUTRO_S: 2.0, bitrate: 5_000_000 },
+  reels:     { W: 1080, H: 1920, FPS: 30, TRANSITION_S: 0.4, INTRO_S: 1.5, OUTRO_S: 1.5, bitrate: 8_000_000 },
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function loadImg(dataUrl) {
@@ -35,33 +37,72 @@ async function decodeAudio(dataUrl, ctx) {
   } catch { return null; }
 }
 
-function wrapText(ctx2d, text, x, y, maxW, lineH) {
+function wrapText(ctx2d, text, x, y, maxW, lineH, maxLines = 6) {
   const words = String(text || '').split(' ');
   let line = '';
   let cy = y;
+  let lines = 0;
   for (const word of words) {
     const test = line ? `${line} ${word}` : word;
     if (ctx2d.measureText(test).width > maxW && line) {
       ctx2d.fillText(line, x, cy);
-      line = word; cy += lineH;
+      line = word; cy += lineH; lines++;
+      if (lines >= maxLines) break;
     } else { line = test; }
   }
-  if (line) ctx2d.fillText(line, x, cy);
+  if (line && lines < maxLines) ctx2d.fillText(line, x, cy);
 }
 
 // ── Easing ────────────────────────────────────────────────────────────────────
-const easeOut = (t) => 1 - (1 - t) ** 2;
-const clamp   = (v, a, b) => Math.max(a, Math.min(b, v));
+const easeOut  = (t) => 1 - (1 - t) ** 2;
+const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+const clamp    = (v, a, b) => Math.max(a, Math.min(b, v));
 
-// ── Frame renderer ─────────────────────────────────────────────────────────────
-function drawFrame(ctx2d, state, story, images) {
-  const { elapsed, totalDur, segments } = state;
+// ── Draw "cover" image (fill canvas, centred crop) ────────────────────────────
+function drawImageCover(ctx2d, img, W, H, scale = 1) {
+  if (!img) return;
+  const imgAspect    = img.naturalWidth / img.naturalHeight;
+  const canvasAspect = W / H;
+  let sw, sh, sx, sy;
+  if (imgAspect > canvasAspect) {
+    sh = img.naturalHeight * scale;
+    sw = sh * canvasAspect;
+    sx = (img.naturalWidth - sw / scale) / 2;
+    sy = (img.naturalHeight * (1 - scale)) / 2;
+  } else {
+    sw = img.naturalWidth * scale;
+    sh = sw / canvasAspect;
+    sx = (img.naturalWidth * (1 - scale)) / 2;
+    sy = (img.naturalHeight - sh / scale) / 2;
+  }
+  ctx2d.drawImage(img, sx, sy, img.naturalWidth - sx * 2, img.naturalHeight - sy * 2, 0, 0, W, H);
+}
+
+// ── Small cross icon (SVG-like path on canvas) ─────────────────────────────────
+function drawCrossIcon(ctx2d, cx, cy, size, alpha) {
+  ctx2d.save();
+  ctx2d.globalAlpha = alpha;
+  ctx2d.fillStyle = '#c9a84c';
+  const arm = size * 0.22;
+  const stem = size * 0.65;
+  // vertical
+  ctx2d.fillRect(cx - arm / 2, cy - stem / 2, arm, stem);
+  // horizontal
+  ctx2d.fillRect(cx - stem * 0.55, cy - stem * 0.05, stem * 1.1, arm);
+  ctx2d.restore();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  LANDSCAPE renderer  (1280 × 720)
+// ══════════════════════════════════════════════════════════════════════════════
+function drawFrameLandscape(ctx2d, state, story, images) {
+  const { W, H } = FORMATS.landscape;
+  const { elapsed, totalDur, segments, TRANSITION_S, INTRO_S, OUTRO_S } = state;
 
   ctx2d.clearRect(0, 0, W, H);
   ctx2d.fillStyle = '#0b1a14';
   ctx2d.fillRect(0, 0, W, H);
 
-  // Determine segment
   let seg = null;
   for (const s of segments) {
     if (elapsed >= s.start && elapsed < s.end) { seg = s; break; }
@@ -69,14 +110,11 @@ function drawFrame(ctx2d, state, story, images) {
   if (!seg && segments.length) seg = segments[segments.length - 1];
   if (!seg) return;
 
-  const segT  = clamp((elapsed - seg.start) / (seg.end - seg.start), 0, 1);
+  const segT = clamp((elapsed - seg.start) / (seg.end - seg.start), 0, 1);
 
   if (seg.type === 'intro') {
-    // ── Intro card ──────────────────────────────────────────────────────────
     const alpha = segT < 0.3 ? easeOut(segT / 0.3) : segT > 0.8 ? 1 - easeOut((segT - 0.8) / 0.2) : 1;
     ctx2d.globalAlpha = alpha;
-
-    // Gold ornament bar
     const barGrad = ctx2d.createLinearGradient(0, 0, W, 0);
     barGrad.addColorStop(0, 'transparent');
     barGrad.addColorStop(0.3, '#c9a84c');
@@ -84,99 +122,71 @@ function drawFrame(ctx2d, state, story, images) {
     barGrad.addColorStop(1, 'transparent');
     ctx2d.fillStyle = barGrad;
     ctx2d.fillRect(0, H / 2 - 110, W, 2);
-
-    // Event title
     ctx2d.textAlign = 'center';
     ctx2d.font = 'bold 62px Georgia, serif';
     ctx2d.fillStyle = '#ffffff';
     ctx2d.shadowColor = 'rgba(0,0,0,0.6)'; ctx2d.shadowBlur = 16;
-    wrapText(ctx2d, story.title || '', W / 2 - 300, H / 2 - 60, 600, 72);
-
+    wrapText(ctx2d, story.title || '', W / 2, H / 2 - 30, 700, 72, 2);
     ctx2d.font = '26px Arial, sans-serif';
     ctx2d.fillStyle = '#c9a84c';
     ctx2d.shadowBlur = 0;
-    ctx2d.fillText(story.reference || story.event?.era || '', W / 2, H / 2 + 60);
-
+    ctx2d.fillText(story.reference || story.event?.era || '', W / 2, H / 2 + 70);
     ctx2d.font = '18px Arial, sans-serif';
     ctx2d.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx2d.fillText('SabAI Bible • AI Story Video', W / 2, H / 2 + 100);
-
+    ctx2d.fillText('SabAI Bible • AI Story Video', W / 2, H / 2 + 110);
     ctx2d.fillStyle = barGrad;
-    ctx2d.fillRect(0, H / 2 + 120, W, 2);
+    ctx2d.fillRect(0, H / 2 + 128, W, 2);
     ctx2d.textAlign = 'left';
     ctx2d.globalAlpha = 1;
 
   } else if (seg.type === 'scene') {
-    // ── Scene ───────────────────────────────────────────────────────────────
     const img   = images[seg.sceneIdx];
     const scene = story.scenes[seg.sceneIdx];
-
-    // Fade from prev / fade to next
     const fadeIn  = clamp(segT / (TRANSITION_S / (seg.end - seg.start)), 0, 1);
     const fadeOut = segT > 1 - TRANSITION_S / (seg.end - seg.start)
-      ? clamp((1 - segT) / (TRANSITION_S / (seg.end - seg.start)), 0, 1)
-      : 1;
-    const imgAlpha = fadeIn * fadeOut;
+      ? clamp((1 - segT) / (TRANSITION_S / (seg.end - seg.start)), 0, 1) : 1;
+    const imgAlpha = easeOut(fadeIn) * easeOut(fadeOut);
 
-    // Ken Burns — slow zoom from 100% → 108%
-    const scale = 1 + easeOut(segT) * 0.08;
-    const sw = W * scale, sh = H * scale;
-    const ox = (sw - W) / 2, oy = (sh - H) / 2;
-
+    const kbScale = 1 + easeOut(segT) * 0.08;
     if (img) {
       ctx2d.globalAlpha = imgAlpha;
-      ctx2d.drawImage(img, -ox, -oy, sw, sh);
+      drawImageCover(ctx2d, img, W, H, kbScale);
       ctx2d.globalAlpha = 1;
     }
 
-    // Bottom gradient
     const grad = ctx2d.createLinearGradient(0, H * 0.35, 0, H);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
     grad.addColorStop(1, 'rgba(0,0,0,0.88)');
-    ctx2d.fillStyle = grad;
-    ctx2d.fillRect(0, 0, W, H);
+    ctx2d.fillStyle = grad; ctx2d.fillRect(0, 0, W, H);
 
-    // Top gradient (thin)
     const topGrad = ctx2d.createLinearGradient(0, 0, 0, 90);
     topGrad.addColorStop(0, 'rgba(0,0,0,0.55)');
     topGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx2d.fillStyle = topGrad;
-    ctx2d.fillRect(0, 0, W, 90);
+    ctx2d.fillStyle = topGrad; ctx2d.fillRect(0, 0, W, 90);
 
     ctx2d.globalAlpha = imgAlpha;
-
-    // Story title (top-left, gold)
     ctx2d.font = '600 17px Arial, sans-serif';
     ctx2d.fillStyle = '#c9a84c';
     ctx2d.letterSpacing = '2px';
     ctx2d.fillText((story.title || '').toUpperCase().slice(0, 40), 42, 46);
     ctx2d.letterSpacing = '0px';
-
-    // Scene counter (top-right)
     ctx2d.textAlign = 'right';
     ctx2d.font = '16px Arial, sans-serif';
     ctx2d.fillStyle = 'rgba(255,255,255,0.65)';
     ctx2d.fillText(`${seg.sceneIdx + 1} / ${story.scenes.length}`, W - 42, 46);
     ctx2d.textAlign = 'left';
-
-    // Scene title (bottom)
-    ctx2d.shadowColor = 'rgba(0,0,0,0.9)';
-    ctx2d.shadowBlur = 12;
+    ctx2d.shadowColor = 'rgba(0,0,0,0.9)'; ctx2d.shadowBlur = 12;
     ctx2d.font = 'bold 44px Georgia, serif';
     ctx2d.fillStyle = '#ffffff';
-    wrapText(ctx2d, scene.title || '', 50, H - 140, W - 100, 52);
-
-    // Narration caption
+    wrapText(ctx2d, scene.title || '', 50, H - 140, W - 100, 52, 2);
     ctx2d.font = '22px Arial, sans-serif';
     ctx2d.fillStyle = 'rgba(255,255,255,0.88)';
     ctx2d.shadowBlur = 8;
-    wrapText(ctx2d, scene.narration || '', 50, H - 72, W - 100, 28);
+    wrapText(ctx2d, scene.narration || '', 50, H - 72, W - 100, 28, 2);
     ctx2d.shadowBlur = 0;
-
     ctx2d.globalAlpha = 1;
 
   } else if (seg.type === 'outro') {
-    // ── Outro card ──────────────────────────────────────────────────────────
     const alpha = segT < 0.4 ? easeOut(segT / 0.4) : 1 - easeOut((segT - 0.4) / 0.6);
     ctx2d.globalAlpha = Math.max(0, alpha);
     ctx2d.textAlign = 'center';
@@ -190,7 +200,7 @@ function drawFrame(ctx2d, state, story, images) {
     ctx2d.globalAlpha = 1;
   }
 
-  // ── Progress bar (always) ─────────────────────────────────────────────────
+  // Progress bar
   ctx2d.fillStyle = 'rgba(255,255,255,0.15)';
   ctx2d.fillRect(0, H - 4, W, 4);
   const barGrad2 = ctx2d.createLinearGradient(0, 0, W, 0);
@@ -198,6 +208,209 @@ function drawFrame(ctx2d, state, story, images) {
   barGrad2.addColorStop(1, '#c9a84c');
   ctx2d.fillStyle = barGrad2;
   ctx2d.fillRect(0, H - 4, clamp(elapsed / totalDur, 0, 1) * W, 4);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  REELS renderer  (1080 × 1920, 9:16 — Instagram / TikTok / YouTube Shorts)
+// ══════════════════════════════════════════════════════════════════════════════
+function drawFrameReels(ctx2d, state, story, images) {
+  const { W, H } = FORMATS.reels;
+  const { elapsed, totalDur, segments, TRANSITION_S } = state;
+
+  ctx2d.clearRect(0, 0, W, H);
+  ctx2d.fillStyle = '#050d18';
+  ctx2d.fillRect(0, 0, W, H);
+
+  let seg = null;
+  for (const s of segments) {
+    if (elapsed >= s.start && elapsed < s.end) { seg = s; break; }
+  }
+  if (!seg && segments.length) seg = segments[segments.length - 1];
+  if (!seg) return;
+
+  const segT = clamp((elapsed - seg.start) / (seg.end - seg.start), 0, 1);
+
+  if (seg.type === 'intro') {
+    // ── Reels intro: full dark card, big centred title ────────────────────────
+    const alpha = segT < 0.35 ? easeOut(segT / 0.35) : segT > 0.75 ? 1 - easeOut((segT - 0.75) / 0.25) : 1;
+    ctx2d.globalAlpha = alpha;
+
+    // Ambient glow behind title
+    const glow = ctx2d.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 600);
+    glow.addColorStop(0, 'rgba(201,168,76,0.18)');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx2d.fillStyle = glow;
+    ctx2d.fillRect(0, 0, W, H);
+
+    // Gold horizontal rules
+    const gr = ctx2d.createLinearGradient(0, 0, W, 0);
+    gr.addColorStop(0, 'transparent');
+    gr.addColorStop(0.4, '#c9a84c');
+    gr.addColorStop(0.6, '#c9a84c');
+    gr.addColorStop(1, 'transparent');
+    ctx2d.fillStyle = gr;
+    ctx2d.fillRect(0, H / 2 - 190, W, 2);
+    ctx2d.fillRect(0, H / 2 + 160, W, 2);
+
+    // Cross icon centred top
+    drawCrossIcon(ctx2d, W / 2, H / 2 - 240, 60, 0.85);
+
+    // Title
+    ctx2d.textAlign = 'center';
+    ctx2d.font = 'bold 80px Georgia, serif';
+    ctx2d.fillStyle = '#ffffff';
+    ctx2d.shadowColor = 'rgba(0,0,0,0.8)'; ctx2d.shadowBlur = 20;
+    wrapText(ctx2d, story.title || '', W / 2, H / 2 - 120, W - 120, 92, 3);
+
+    // Reference
+    ctx2d.font = '44px Arial, sans-serif';
+    ctx2d.fillStyle = '#c9a84c';
+    ctx2d.shadowBlur = 0;
+    ctx2d.fillText(story.reference || '', W / 2, H / 2 + 100);
+
+    // Sub-brand
+    ctx2d.font = '700 28px Arial, sans-serif';
+    ctx2d.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx2d.letterSpacing = '4px';
+    ctx2d.fillText('SABAI BIBLE', W / 2, H / 2 + 170);
+    ctx2d.letterSpacing = '0px';
+
+    ctx2d.textAlign = 'left';
+    ctx2d.globalAlpha = 1;
+
+  } else if (seg.type === 'scene') {
+    // ── Reels scene: full-bleed image, bottom text overlay ───────────────────
+    const img   = images[seg.sceneIdx];
+    const scene = story.scenes[seg.sceneIdx];
+
+    const transFrac = TRANSITION_S / (seg.end - seg.start);
+    const fadeIn  = clamp(segT / transFrac, 0, 1);
+    const fadeOut = segT > 1 - transFrac ? clamp((1 - segT) / transFrac, 0, 1) : 1;
+    const imgAlpha = easeOut(fadeIn) * easeOut(fadeOut);
+
+    // Ken Burns — slight zoom for reels too
+    const kbScale = 1 + easeInOut(segT) * 0.05;
+
+    if (img) {
+      ctx2d.globalAlpha = imgAlpha;
+      drawImageCover(ctx2d, img, W, H, kbScale);
+      ctx2d.globalAlpha = 1;
+    }
+
+    // ── Strong bottom gradient for text readability ──
+    const grad = ctx2d.createLinearGradient(0, H * 0.38, 0, H);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(0.55, 'rgba(0,0,0,0.72)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.96)');
+    ctx2d.fillStyle = grad;
+    ctx2d.fillRect(0, 0, W, H);
+
+    // ── Light top gradient ──
+    const topGrad = ctx2d.createLinearGradient(0, 0, 0, 220);
+    topGrad.addColorStop(0, 'rgba(0,0,0,0.65)');
+    topGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx2d.fillStyle = topGrad;
+    ctx2d.fillRect(0, 0, W, 220);
+
+    ctx2d.globalAlpha = imgAlpha;
+
+    // ── Top bar: brand + scene counter ──
+    ctx2d.font = '700 32px Arial, sans-serif';
+    ctx2d.fillStyle = '#c9a84c';
+    ctx2d.letterSpacing = '3px';
+    ctx2d.fillText('SABAI BIBLE', 60, 88);
+    ctx2d.letterSpacing = '0px';
+
+    // Scene counter dots (top right)
+    const dotR = 10, dotGap = 28, totalDots = story.scenes.length;
+    const dotsW = totalDots * dotGap;
+    const dotStartX = W - 60 - dotsW + dotGap / 2;
+    for (let i = 0; i < totalDots; i++) {
+      ctx2d.beginPath();
+      ctx2d.arc(dotStartX + i * dotGap, 82, i === seg.sceneIdx ? dotR : dotR * 0.5, 0, Math.PI * 2);
+      ctx2d.fillStyle = i === seg.sceneIdx ? '#c9a84c' : 'rgba(255,255,255,0.4)';
+      ctx2d.fill();
+    }
+
+    // Cross watermark (top-right corner)
+    drawCrossIcon(ctx2d, W - 72, 150, 48, 0.55);
+
+    // ── Bottom text block ──
+    const textBottom = H - 80;
+
+    // Era chip
+    ctx2d.font = '700 28px Arial, sans-serif';
+    ctx2d.letterSpacing = '3px';
+    ctx2d.fillStyle = 'rgba(201,168,76,0.9)';
+    const eraText = (story.era || story.reference || '').toUpperCase().slice(0, 30);
+    ctx2d.fillText(eraText, 60, textBottom - 350);
+    ctx2d.letterSpacing = '0px';
+
+    // Scene title — large bold
+    ctx2d.shadowColor = 'rgba(0,0,0,1)'; ctx2d.shadowBlur = 24;
+    ctx2d.font = 'bold 72px Georgia, serif';
+    ctx2d.fillStyle = '#ffffff';
+    wrapText(ctx2d, scene.title || '', 60, textBottom - 270, W - 120, 84, 3);
+
+    // Narration caption
+    ctx2d.font = '400 38px Arial, sans-serif';
+    ctx2d.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx2d.shadowBlur = 12;
+    wrapText(ctx2d, scene.narration || '', 60, textBottom - 80, W - 120, 46, 3);
+    ctx2d.shadowBlur = 0;
+
+    // Scripture reference pill
+    ctx2d.font = '700 30px Arial, sans-serif';
+    ctx2d.fillStyle = 'rgba(201,168,76,0.8)';
+    ctx2d.fillText(story.reference || '', 60, textBottom + 10);
+
+    ctx2d.globalAlpha = 1;
+
+  } else if (seg.type === 'outro') {
+    // ── Reels outro ──────────────────────────────────────────────────────────
+    const alpha = segT < 0.4 ? easeOut(segT / 0.4) : 1 - easeOut((segT - 0.4) / 0.6);
+    ctx2d.globalAlpha = Math.max(0, alpha);
+
+    // Subtle glow
+    const outroGlow = ctx2d.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 700);
+    outroGlow.addColorStop(0, 'rgba(201,168,76,0.12)');
+    outroGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx2d.fillStyle = outroGlow;
+    ctx2d.fillRect(0, 0, W, H);
+
+    drawCrossIcon(ctx2d, W / 2, H / 2 - 120, 80, 0.9);
+
+    ctx2d.textAlign = 'center';
+    ctx2d.font = '700 52px Georgia, serif';
+    ctx2d.fillStyle = '#c9a84c';
+    ctx2d.fillText(story.reference || '', W / 2, H / 2 + 30);
+    ctx2d.font = '700 36px Arial, sans-serif';
+    ctx2d.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx2d.letterSpacing = '5px';
+    ctx2d.fillText('SABAI BIBLE', W / 2, H / 2 + 105);
+    ctx2d.letterSpacing = '0px';
+    ctx2d.font = '30px Arial, sans-serif';
+    ctx2d.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx2d.fillText('AI-Powered Bible Exploration', W / 2, H / 2 + 160);
+    ctx2d.textAlign = 'left';
+    ctx2d.globalAlpha = 1;
+  }
+
+  // ── Thin progress bar at very bottom ──────────────────────────────────────
+  ctx2d.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx2d.fillRect(0, H - 8, W, 8);
+  const progressGrad = ctx2d.createLinearGradient(0, 0, W, 0);
+  progressGrad.addColorStop(0, '#6ee7b7');
+  progressGrad.addColorStop(0.5, '#c9a84c');
+  progressGrad.addColorStop(1, '#f59e0b');
+  ctx2d.fillStyle = progressGrad;
+  const progressW = clamp(elapsed / totalDur, 0, 1) * W;
+  // Rounded right edge only if not full
+  if (progressW > 0) {
+    ctx2d.beginPath();
+    ctx2d.roundRect(0, H - 8, progressW, 8, [0, 4, 4, 0]);
+    ctx2d.fill();
+  }
 }
 
 // ── Best supported MIME ───────────────────────────────────────────────────────
@@ -227,47 +440,46 @@ export function isVideoSupported() {
 }
 
 // ── Total duration helper ─────────────────────────────────────────────────────
-export function estimateVideoDuration(story) {
-  const rawDurs  = (story?.scenes || []).map((s) => Number(s.durationSec) || 7);
-  const sceneSec = rawDurs.reduce((a, b) => a + b, 0);
-  return Math.ceil(INTRO_S + sceneSec + OUTRO_S);
+export function estimateVideoDuration(story, format = 'landscape') {
+  const fmt = FORMATS[format] || FORMATS.landscape;
+  const rawDurs   = (story?.scenes || []).map((s) => Number(s.durationSec) || 7);
+  const sceneSec  = rawDurs.reduce((a, b) => a + b, 0);
+  return Math.ceil(fmt.INTRO_S + sceneSec + fmt.OUTRO_S);
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 /**
- * @param {object}   story      – the story manifest from the API
+ * @param {object}   story      – story manifest from API
  * @param {function} onProgress – called with 0..1
+ * @param {string}   format     – 'landscape' | 'reels'
  * @returns {Promise<Blob>}
  */
-export async function makeStoryVideo(story, onProgress) {
-  // 0. Capability check
+export async function makeStoryVideo(story, onProgress, format = 'landscape') {
   if (!isVideoSupported()) {
     throw new Error('Your browser does not support canvas video capture (MediaRecorder / captureStream). Try Chrome or Edge.');
   }
 
-  // 1a. Create AudioContext SYNCHRONOUSLY before any await so the browser does not
-  //     suspend it (Chrome/Edge autoplay policy only allows AudioContext in a direct
-  //     user-gesture handler; any await before creation causes suspension → no audio).
+  const fmt = FORMATS[format] || FORMATS.landscape;
+  const { W, H, FPS, TRANSITION_S, INTRO_S, OUTRO_S, bitrate } = fmt;
+
+  // Create AudioContext SYNCHRONOUSLY (before any await) — autoplay policy
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   const audioCtx = new AudioCtx();
 
-  // 1b. Load images
   onProgress?.(0.02);
   const images = await Promise.all((story.scenes || []).map((s) => loadImg(s.imageUrl)));
   onProgress?.(0.08);
 
-  // 2. Set up audio — resume context in case it was suspended (e.g. Safari)
   if (audioCtx.state === 'suspended') {
     try { await audioCtx.resume(); } catch { /* non-fatal */ }
   }
   const audioBuffer = await decodeAudio(story.audioUrl, audioCtx);
   const audioDur    = audioBuffer?.duration || 0;
 
-  // 3. Build timeline segments
-  const rawDurs = (story.scenes || []).map((s) => Number(s.durationSec) || 7);
+  // Build timeline segments
+  const rawDurs    = (story.scenes || []).map((s) => Number(s.durationSec) || 7);
   const sceneTotal = rawDurs.reduce((a, b) => a + b, 0);
-  // If audio exists, scale scene durations so video matches audio exactly
-  const scale = audioDur > 2 ? (audioDur / sceneTotal) : 1;
+  const scale      = audioDur > 2 ? (audioDur / sceneTotal) : 1;
   const scaledDurs = rawDurs.map((d) => d * scale);
 
   const segments = [];
@@ -280,12 +492,18 @@ export async function makeStoryVideo(story, onProgress) {
   segments.push({ type: 'outro', start: cursor, end: cursor + OUTRO_S });
   const totalDur = cursor + OUTRO_S;
 
-  // 4. Set up canvas
+  // Canvas
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx2d = canvas.getContext('2d', { alpha: false });
 
-  // 5. Set up MediaRecorder
+  // Shared draw state
+  const drawState = { elapsed: 0, totalDur, segments, TRANSITION_S, INTRO_S, OUTRO_S };
+  const drawFn = format === 'reels'
+    ? (elapsed) => drawFrameReels(ctx2d,   { ...drawState, elapsed }, story, images)
+    : (elapsed) => drawFrameLandscape(ctx2d, { ...drawState, elapsed }, story, images);
+
+  // MediaRecorder
   const mimeType  = bestMime();
   const vidStream = canvas.captureStream(FPS);
   let   recStream = vidStream;
@@ -295,7 +513,6 @@ export async function makeStoryVideo(story, onProgress) {
     srcNode.buffer = audioBuffer;
     const destNode = audioCtx.createMediaStreamDestination();
     srcNode.connect(destNode);
-    // Delay audio start to match intro card
     srcNode.start(audioCtx.currentTime + INTRO_S);
     recStream = new MediaStream([
       ...vidStream.getVideoTracks(),
@@ -303,11 +520,8 @@ export async function makeStoryVideo(story, onProgress) {
     ]);
   }
 
-  const recorder = new MediaRecorder(recStream, {
-    mimeType,
-    videoBitsPerSecond: 5_000_000,
-  });
-  const chunks = [];
+  const recorder = new MediaRecorder(recStream, { mimeType, videoBitsPerSecond: bitrate });
+  const chunks   = [];
   recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
   return new Promise((resolve, reject) => {
@@ -328,35 +542,28 @@ export async function makeStoryVideo(story, onProgress) {
       settle(() => {
         const ext  = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
         const blob = new Blob(chunks, { type: mimeType });
-        blob._ext  = ext;
+        blob._ext    = ext;
+        blob._format = format;
         resolve(blob);
       });
     };
     recorder.onerror = (e) => settle(() => reject(new Error(e?.error?.message || 'MediaRecorder error')));
 
-    // Safety net: force-stop after totalDur + 10 seconds regardless of animation state
     safetyTimer = setTimeout(() => {
-      console.warn('[video] safety timeout fired — stopping recorder');
       if (recorder.state !== 'inactive') recorder.stop();
     }, (totalDur + 10) * 1000);
 
-    recorder.start(500); // collect data every 500ms
+    recorder.start(500);
 
-    const startWall = performance.now();
-
-    // Use both requestAnimationFrame AND a setInterval fallback so that
-    // rendering continues even when the tab is not visible.
-    // (rAF freezes in background tabs; setInterval still fires, throttled to ~1s)
+    const startWall  = performance.now();
     let lastTickTime = -1;
 
     function tick() {
       const elapsed = (performance.now() - startWall) / 1000;
-      if (elapsed === lastTickTime) return; // deduplicate if both rAF and interval fire
+      if (elapsed === lastTickTime) return;
       lastTickTime = elapsed;
-
-      drawFrame(ctx2d, { elapsed, totalDur, segments }, story, images);
+      drawFn(elapsed);
       onProgress?.(0.1 + 0.88 * clamp(elapsed / totalDur, 0, 1));
-
       if (elapsed >= totalDur + 0.3) {
         if (recorder.state !== 'inactive') recorder.stop();
       } else {
@@ -364,15 +571,12 @@ export async function makeStoryVideo(story, onProgress) {
       }
     }
 
-    // setInterval fires even in background tabs (Chrome throttles to ~1fps, still works)
     bgInterval = setInterval(() => {
       const elapsed = (performance.now() - startWall) / 1000;
-      drawFrame(ctx2d, { elapsed, totalDur, segments }, story, images);
+      drawFn(elapsed);
       onProgress?.(0.1 + 0.88 * clamp(elapsed / totalDur, 0, 1));
-      if (elapsed >= totalDur + 0.3) {
-        if (recorder.state !== 'inactive') recorder.stop();
-      }
-    }, 1000); // once per second fallback to keep canvas updating in background
+      if (elapsed >= totalDur + 0.3 && recorder.state !== 'inactive') recorder.stop();
+    }, 1000);
 
     requestAnimationFrame(tick);
   });
@@ -390,15 +594,20 @@ export function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
-/** Save blob to IndexedDB so it persists across page refreshes */
-export async function saveVideoLocally(eventId, blob) {
+/** Save blob to IndexedDB */
+export async function saveVideoLocally(eventId, blob, format = 'landscape') {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('sabai-story-videos', 1);
-    req.onupgradeneeded = (e) => e.target.result.createObjectStore('videos');
+    const req = indexedDB.open('sabai-story-videos', 2);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('videos'))    db.createObjectStore('videos');
+      if (!db.objectStoreNames.contains('reels'))     db.createObjectStore('reels');
+    };
     req.onsuccess = (e) => {
-      const db  = e.target.result;
-      const tx  = db.transaction('videos', 'readwrite');
-      const put = tx.objectStore('videos').put({ blob, ext: blob._ext || 'webm', ts: Date.now() }, eventId);
+      const db    = e.target.result;
+      const store = format === 'reels' ? 'reels' : 'videos';
+      const tx    = db.transaction(store, 'readwrite');
+      const put   = tx.objectStore(store).put({ blob, ext: blob._ext || 'webm', format, ts: Date.now() }, eventId);
       put.onsuccess = () => resolve();
       put.onerror   = reject;
     };
@@ -407,19 +616,24 @@ export async function saveVideoLocally(eventId, blob) {
 }
 
 /** Load blob from IndexedDB */
-export async function loadVideoLocally(eventId) {
+export async function loadVideoLocally(eventId, format = 'landscape') {
   return new Promise((resolve) => {
-    const req = indexedDB.open('sabai-story-videos', 1);
-    req.onupgradeneeded = (e) => e.target.result.createObjectStore('videos');
+    const req = indexedDB.open('sabai-story-videos', 2);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('videos')) db.createObjectStore('videos');
+      if (!db.objectStoreNames.contains('reels'))  db.createObjectStore('reels');
+    };
     req.onsuccess = (e) => {
-      const db  = e.target.result;
-      const tx  = db.transaction('videos', 'readonly');
-      const get = tx.objectStore('videos').get(eventId);
+      const db    = e.target.result;
+      const store = format === 'reels' ? 'reels' : 'videos';
+      if (!db.objectStoreNames.contains(store)) { resolve(null); return; }
+      const tx  = db.transaction(store, 'readonly');
+      const get = tx.objectStore(store).get(eventId);
       get.onsuccess = (ev) => {
         const rec = ev.target.result;
         if (!rec) { resolve(null); return; }
-        const url = URL.createObjectURL(rec.blob);
-        resolve({ url, ext: rec.ext, ts: rec.ts });
+        resolve({ url: URL.createObjectURL(rec.blob), ext: rec.ext, format: rec.format, ts: rec.ts });
       };
       get.onerror = () => resolve(null);
     };

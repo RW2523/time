@@ -1708,6 +1708,114 @@ button { cursor: pointer; }
   margin-bottom: 10px;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   VIDEO FORMAT PICKER
+════════════════════════════════════════════════════════════════ */
+
+.video-format-picker {
+  display: flex;
+  gap: 3px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+.vfp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all .18s;
+  white-space: nowrap;
+}
+.vfp-btn:hover { color: var(--ink); background: rgba(255,255,255,.07); }
+.vfp-btn.active {
+  background: rgba(99,102,241,.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99,102,241,.4);
+}
+.vfp-btn--reels.active {
+  background: linear-gradient(135deg, rgba(236,72,153,.18), rgba(251,146,60,.18));
+  color: #f9a8d4;
+  border: 1px solid rgba(236,72,153,.35);
+}
+.vfp-dim {
+  font-size: 9px;
+  font-weight: 600;
+  opacity: .65;
+  font-family: var(--font-mono, monospace);
+}
+.vfp-ready {
+  font-size: 9px;
+  color: #6ee7b7;
+  font-weight: 900;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   REELS VIDEO PLAYER  (vertical 9:16 frame)
+════════════════════════════════════════════════════════════════ */
+
+.story-video-player--reels {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  background: linear-gradient(180deg, #08121e, #0b192c);
+  border-radius: 12px;
+  position: relative;
+}
+
+/* Vertical phone-shaped container */
+.story-video-player--reels .story-video-player__video {
+  width: auto;
+  height: 520px;           /* fixed height */
+  max-height: 60vh;
+  aspect-ratio: 9 / 16;
+  border-radius: 20px;
+  object-fit: cover;
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,.08),
+    0 24px 64px rgba(0,0,0,.7);
+  background: #000;
+}
+
+/* Reel format badge */
+.reel-format-badge {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, rgba(236,72,153,.3), rgba(251,146,60,.3));
+  color: #f9a8d4;
+  border: 1px solid rgba(236,72,153,.4);
+  backdrop-filter: blur(4px);
+}
+
+/* Overlay buttons for reels: placed below the video */
+.story-video-player--reels .story-video-player__overlay-btns {
+  position: static;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: center;
+}
+
 /* ── Responsive ─── */
 @media (max-width: 860px) {
   .bjm-sidebar { width: 230px; }

@@ -29,7 +29,8 @@ import {
   Filter, Film, GitBranch, HardDrive, Loader2, Map, MapPin, Maximize2,
   MessageCircle, Minimize2, Pause, Play, Search, Server, Settings,
   Sparkles, TreePine, Users, Wand2, X,
-  Navigation, Globe, Compass, Route, Tag, Building2, ArrowRightLeft
+  Navigation, Globe, Compass, Route, Tag, Building2, ArrowRightLeft,
+  Smartphone
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -585,21 +586,40 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
   const [audioDuration, setAudioDuration] = useState(0);
   const [videoCinema, setVideoCinema]     = useState(false);
 
-  // Video generation state
-  const [videoStatus,   setVideoStatus]   = useState('idle'); // idle | making | ready | error
-  const [videoProgress, setVideoProgress] = useState(0);
-  const [videoUrl,      setVideoUrl]      = useState(null);
-  const [videoExt,      setVideoExt]      = useState('webm');
+  // Format selector — 'landscape' | 'reels'
+  const [videoFormat, setVideoFormat] = useState('landscape');
+
+  // Separate state per format so both can be cached
+  const [videoState, setVideoState] = useState({
+    landscape: { status: 'idle', progress: 0, url: null, ext: 'webm' },
+    reels:     { status: 'idle', progress: 0, url: null, ext: 'webm' },
+  });
   const videoRef = useRef(null);
+
+  const vs = videoState[videoFormat];
+  const setVs = (patch) => setVideoState(prev => ({
+    ...prev,
+    [videoFormat]: { ...prev[videoFormat], ...patch },
+  }));
 
   const videoSupported = isVideoSupported();
 
-  // Load saved video from IndexedDB when event changes
+  // Load saved videos from IndexedDB when event changes
   useEffect(() => {
-    setVideoUrl(null); setVideoStatus('idle'); setVideoProgress(0);
+    setVideoState({
+      landscape: { status: 'idle', progress: 0, url: null, ext: 'webm' },
+      reels:     { status: 'idle', progress: 0, url: null, ext: 'webm' },
+    });
     if (!exportEventId) return;
-    loadVideoLocally(exportEventId).then((rec) => {
-      if (rec) { setVideoUrl(rec.url); setVideoExt(rec.ext || 'webm'); setVideoStatus('ready'); }
+    ['landscape', 'reels'].forEach(fmt => {
+      loadVideoLocally(exportEventId, fmt).then((rec) => {
+        if (rec) {
+          setVideoState(prev => ({
+            ...prev,
+            [fmt]: { status: 'ready', progress: 100, url: rec.url, ext: rec.ext || 'webm' },
+          }));
+        }
+      });
     });
   }, [exportEventId]);
 
@@ -654,25 +674,28 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
     }
   };
 
-  // Generate MP4/WebM video client-side
-  const handleMakeVideo = useCallback(async () => {
+  // Generate video in selected format
+  const handleMakeVideo = useCallback(async (fmt = videoFormat) => {
     if (!story) return;
-    setVideoStatus('making'); setVideoProgress(0); setVideoUrl(null);
+    setVideoState(prev => ({ ...prev, [fmt]: { status: 'making', progress: 0, url: null, ext: 'webm' } }));
     try {
-      const blob = await makeStoryVideo(story, (p) => setVideoProgress(Math.round(p * 100)));
-      const url  = URL.createObjectURL(blob);
-      setVideoUrl(url); setVideoExt(blob._ext || 'webm'); setVideoStatus('ready');
-      await saveVideoLocally(exportEventId || story.eventId, blob);
+      const blob = await makeStoryVideo(story, (p) => {
+        setVideoState(prev => ({ ...prev, [fmt]: { ...prev[fmt], progress: Math.round(p * 100) } }));
+      }, fmt);
+      const url = URL.createObjectURL(blob);
+      setVideoState(prev => ({ ...prev, [fmt]: { status: 'ready', progress: 100, url, ext: blob._ext || 'webm' } }));
+      await saveVideoLocally(exportEventId || story.eventId, blob, fmt);
     } catch (err) {
       console.error('[video]', err);
-      setVideoStatus('error');
+      setVideoState(prev => ({ ...prev, [fmt]: { ...prev[fmt], status: 'error' } }));
     }
-  }, [story, exportEventId]);
+  }, [story, exportEventId, videoFormat]);
 
   const handleDownload = () => {
-    if (!videoUrl) return;
-    const name = `${exportEventId || story?.eventId || 'story'}-video.${videoExt}`;
-    const a = Object.assign(document.createElement('a'), { href: videoUrl, download: name, rel: 'noopener' });
+    if (!vs.url) return;
+    const suffix = videoFormat === 'reels' ? '-reel' : '-video';
+    const name = `${exportEventId || story?.eventId || 'story'}${suffix}.${vs.ext}`;
+    const a = Object.assign(document.createElement('a'), { href: vs.url, download: name, rel: 'noopener' });
     document.body.appendChild(a); a.click(); a.remove();
   };
 
@@ -682,7 +705,7 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
         <button type="button" className="story-player__cinema-close" onClick={exitCinema} aria-label="Exit fullscreen"><X size={22} /></button>
       )}
 
-      {/* ── TOOLBAR at TOP — always the first thing visible, no scrolling needed ── */}
+      {/* ── TOOLBAR at TOP ── */}
       <div className="player-toolbar player-toolbar--top">
         <div className="player-left">
           <div className="player-icon"><Sparkles size={22} aria-hidden /></div>
@@ -694,7 +717,7 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
 
         {story ? (
           <div className="player-actions">
-            {/* Audio play/pause — only if TTS was generated */}
+            {/* Audio play/pause */}
             {audioSrc ? (
               <>
                 <button type="button" className="secondary" onClick={toggleAudio}>
@@ -712,35 +735,60 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
               </span>
             )}
 
-            {/* ── Create / Download video — the primary CTA ── */}
+            {/* ── Format picker ── */}
+            <div className="video-format-picker" role="group" aria-label="Video format">
+              <button
+                type="button"
+                className={`vfp-btn${videoFormat === 'landscape' ? ' active' : ''}`}
+                onClick={() => setVideoFormat('landscape')}
+                title="Standard landscape video (1280×720, 16:9)">
+                <Film size={13} />
+                <span>Video</span>
+                <span className="vfp-dim">16:9</span>
+                {videoState.landscape.status === 'ready' && <span className="vfp-ready">✓</span>}
+              </button>
+              <button
+                type="button"
+                className={`vfp-btn vfp-btn--reels${videoFormat === 'reels' ? ' active' : ''}`}
+                onClick={() => setVideoFormat('reels')}
+                title="Vertical reel format (1080×1920, 9:16) — Instagram / TikTok / YouTube Shorts">
+                <Smartphone size={13} />
+                <span>Reel</span>
+                <span className="vfp-dim">9:16</span>
+                {videoState.reels.status === 'ready' && <span className="vfp-ready">✓</span>}
+              </button>
+            </div>
+
+            {/* ── Create / Download video ── */}
             {!videoSupported ? (
               <span className="story-video-unsupported" title="Use Chrome or Edge for video generation">
                 <Film size={15} /> Video: use Chrome/Edge
               </span>
-            ) : videoStatus === 'idle' || videoStatus === 'error' ? (
+            ) : vs.status === 'idle' || vs.status === 'error' ? (
               <button type="button" className="primary story-make-video-btn"
-                onClick={handleMakeVideo} disabled={loading}
-                title={`Render a ~${estimateVideoDuration(story)}s video with Ken Burns transitions${audioSrc ? ' + narration audio' : ''} — keep this tab visible`}>
-                <Film size={15} /> Create Video
+                onClick={() => handleMakeVideo(videoFormat)} disabled={loading}
+                title={`Render a ~${estimateVideoDuration(story, videoFormat)}s ${videoFormat === 'reels' ? 'reel (9:16)' : 'video (16:9)'} — keep this tab visible`}>
+                {videoFormat === 'reels' ? <Smartphone size={15} /> : <Film size={15} />}
+                {videoFormat === 'reels' ? 'Create Reel' : 'Create Video'}
               </button>
-            ) : videoStatus === 'making' ? (
+            ) : vs.status === 'making' ? (
               <button type="button" className="primary story-make-video-btn" disabled>
-                <Loader2 size={15} className="spin" /> Rendering… {videoProgress}%
+                <Loader2 size={15} className="spin" /> Rendering… {vs.progress}%
               </button>
             ) : (
               <>
                 <button type="button" className="primary story-make-video-btn" onClick={handleDownload}>
-                  <Download size={15} /> Download {videoExt.toUpperCase()}
+                  <Download size={15} /> Download {vs.ext.toUpperCase()}
                 </button>
                 <button type="button" className="secondary story-make-video-btn"
-                  onClick={() => { setVideoStatus('idle'); handleMakeVideo(); }}>
-                  <Film size={15} /> Re-create
+                  onClick={() => handleMakeVideo(videoFormat)}>
+                  {videoFormat === 'reels' ? <Smartphone size={15} /> : <Film size={15} />} Re-create
                 </button>
               </>
             )}
 
             {/* Scene stepper */}
-            {videoStatus !== 'ready' && (
+            {vs.status !== 'ready' && (
               <div className="scene-stepper" role="tablist">
                 {story.scenes.map((s, i) => (
                   <button type="button" key={s.title + i} className={i === sceneIndex ? 'active' : ''} onClick={() => setSceneIndex(i)}>{i + 1}</button>
@@ -748,7 +796,6 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
               </div>
             )}
 
-            {/* New version */}
             <button type="button" className="secondary story-regenerate" onClick={onRegenerate} disabled={loading}>
               {loading ? 'Working…' : 'New version'}
             </button>
@@ -777,50 +824,56 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
         )}
       </div>
 
-      {/* ── Rendering progress bar (full-width, below toolbar) ── */}
-      {videoStatus === 'making' && (
+      {/* ── Rendering progress banner ── */}
+      {vs.status === 'making' && (
         <div className="story-video-progress story-video-progress--banner">
           <Loader2 size={16} className="spin" />
           <div style={{ flex: 1 }}>
-            <span>Rendering video with transitions… {videoProgress}%
-              {videoProgress < 8 && <span style={{ opacity: 0.65 }}>&nbsp;(~{estimateVideoDuration(story)}s — keep tab visible)</span>}
+            <span>
+              {videoFormat === 'reels' ? '📱 Rendering Reel (9:16)' : '🎬 Rendering Video (16:9)'}… {vs.progress}%
+              {vs.progress < 8 && <span style={{ opacity: 0.65 }}>&nbsp;(~{estimateVideoDuration(story, videoFormat)}s — keep tab visible)</span>}
             </span>
-            <div className="story-video-progress__bar"><div style={{ width: `${videoProgress}%` }} /></div>
+            <div className="story-video-progress__bar"><div style={{ width: `${vs.progress}%` }} /></div>
           </div>
         </div>
       )}
-      {videoStatus === 'error' && (
+      {vs.status === 'error' && (
         <div className="story-video-progress story-video-progress--error story-video-progress--banner">
-          ⚠ Video creation failed — open DevTools console for details, then try again
+          ⚠ {videoFormat === 'reels' ? 'Reel' : 'Video'} creation failed — open DevTools console for details, then try again
         </div>
       )}
 
-      {/* ── Video player (shown when video is ready) — replaces slideshow ── */}
-      {videoStatus === 'ready' && videoUrl && (
-        <div className="story-video-player">
+      {/* ── Video / Reel player ── */}
+      {vs.status === 'ready' && vs.url && (
+        <div className={`story-video-player${videoFormat === 'reels' ? ' story-video-player--reels' : ''}`}>
           <video
             ref={videoRef}
-            src={videoUrl}
+            src={vs.url}
             controls
             autoPlay
             loop
             playsInline
             className="story-video-player__video"
-            aria-label={`${story?.title || 'Story'} video`}
+            aria-label={`${story?.title || 'Story'} ${videoFormat === 'reels' ? 'reel' : 'video'}`}
           />
+          {videoFormat === 'reels' && (
+            <div className="reel-format-badge">
+              <Smartphone size={12} /> Reel · 9:16
+            </div>
+          )}
           <div className="story-video-player__overlay-btns">
             <button type="button" className="secondary story-cinema-toggle" onClick={videoCinema ? exitCinema : enterCinema}>
               {videoCinema ? <><Minimize2 size={15} /> Exit</> : <><Maximize2 size={15} /> Fullscreen</>}
             </button>
-            <button type="button" className="secondary" onClick={() => setVideoStatus('idle')}>
+            <button type="button" className="secondary" onClick={() => setVideoState(prev => ({ ...prev, [videoFormat]: { ...prev[videoFormat], status: 'idle' } }))}>
               <Film size={15} /> Scenes
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Scene slideshow (shown while no video / video not ready) ── */}
-      {videoStatus !== 'ready' && story && (
+      {/* ── Scene slideshow (shown while no video) ── */}
+      {vs.status !== 'ready' && story && (
         <figure className={`story-theater${loading ? ' story-theater--busy' : ''}`}>
           <div className="story-theater__frame">
             {imgSrc
