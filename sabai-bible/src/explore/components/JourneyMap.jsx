@@ -1,9 +1,10 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import { MapContainer, Marker, Pane, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Pane, Polygon, Polyline, Popup, Tooltip, TileLayer, useMap } from 'react-leaflet';
 import { ChevronDown, ChevronUp, Layers, X } from 'lucide-react';
 import { boundsFromMarkerDisplay, getEventMarkerPosition, getEventLatLng, getRouteLatLngs } from '../geo/journeyGeo';
 import { CLASSIC_JOURNEYS } from '../geo/classicJourneys';
+import { BIBLICAL_REGIONS, WATER_BODIES } from '../geo/biblicalRegions';
 import EventArtIcon from './EventArtIcon.jsx';
 import { getStoryMarkerIcon } from '../lib/storyMarkerIcon.js';
 import { eventMatchesTimelineFilter } from '../lib/timelineEra.js';
@@ -147,35 +148,75 @@ const EventMarker = memo(function EventMarker({ event, allEvents, selectedId, ac
   );
 });
 
-function MapLayersPanel({ basemap, setBasemap, showAtlasRoutes, setShowAtlasRoutes, warmOverlay, setWarmOverlay, onClose }) {
+function MapLayersPanel({
+  basemap, setBasemap,
+  showAtlasRoutes, setShowAtlasRoutes,
+  showRegions, setShowRegions,
+  showWater, setShowWater,
+  showJourneyLabels, setShowJourneyLabels,
+  journeyFilter, setJourneyFilter,
+  warmOverlay, setWarmOverlay,
+  onClose
+}) {
   return (
     <div id="map-layers-panel" className="map-layers-panel" role="region" aria-label="Map display options">
       <div className="map-layers-panel__head">
-        <span className="map-layers-panel__title">Basemap</span>
-        <button type="button" className="map-layers-panel__close" onClick={onClose} aria-label="Hide basemap options">
+        <span className="map-layers-panel__title">Map Layers</span>
+        <button type="button" className="map-layers-panel__close" onClick={onClose} aria-label="Close">
           <X size={16} />
         </button>
       </div>
+
+      {/* Basemap */}
+      <p className="map-layers-panel__section-label">Basemap</p>
       <div className="map-layers-panel__segment" role="group">
-        <button type="button" className={basemap === 'streets' ? 'active' : ''} onClick={() => setBasemap('streets')}>
-          Streets
-        </button>
-        <button type="button" className={basemap === 'terrain' ? 'active' : ''} onClick={() => setBasemap('terrain')}>
-          Terrain
-        </button>
-        <button type="button" className={basemap === 'satellite' ? 'active' : ''} onClick={() => setBasemap('satellite')}>
-          Satellite
-        </button>
+        <button type="button" className={basemap === 'streets'   ? 'active' : ''} onClick={() => setBasemap('streets')}>Streets</button>
+        <button type="button" className={basemap === 'terrain'   ? 'active' : ''} onClick={() => setBasemap('terrain')}>Terrain</button>
+        <button type="button" className={basemap === 'satellite' ? 'active' : ''} onClick={() => setBasemap('satellite')}>Satellite</button>
       </div>
+
+      {/* Overlays */}
+      <p className="map-layers-panel__section-label">Overlays</p>
+      <label className="map-layers-panel__check">
+        <input type="checkbox" checked={showRegions} onChange={(e) => setShowRegions(e.target.checked)} />
+        <span className="map-layers-panel__check-dot" style={{ background: '#c9a84c' }} />
+        Ancient kingdoms & borders
+      </label>
+      <label className="map-layers-panel__check">
+        <input type="checkbox" checked={showWater} onChange={(e) => setShowWater(e.target.checked)} />
+        <span className="map-layers-panel__check-dot" style={{ background: '#3b82f6' }} />
+        Rivers & water bodies
+      </label>
       <label className="map-layers-panel__check">
         <input type="checkbox" checked={showAtlasRoutes} onChange={(e) => setShowAtlasRoutes(e.target.checked)} />
-        Atlas journey lines
+        <span className="map-layers-panel__check-dot" style={{ background: '#1f6f54' }} />
+        Journey routes
       </label>
       <label className="map-layers-panel__check">
-        <input type="checkbox" checked={warmOverlay} onChange={(e) => setWarmOverlay(e.target.checked)} />
-        Warm atlas tone (tiles)
+        <input type="checkbox" checked={showJourneyLabels} onChange={(e) => setShowJourneyLabels(e.target.checked)} />
+        <span className="map-layers-panel__check-dot" style={{ background: '#94a3b8' }} />
+        Route labels on hover
       </label>
-      <p className="map-layers-panel__hint">All story markers (1–50) stay on the map; use the timeline to frame an era.</p>
+
+      {/* Journey filter */}
+      {showAtlasRoutes && (
+        <>
+          <p className="map-layers-panel__section-label">Filter routes</p>
+          <div className="map-layers-panel__segment map-layers-panel__segment--3" role="group">
+            <button type="button" className={journeyFilter === 'ALL' ? 'active' : ''} onClick={() => setJourneyFilter('ALL')}>All</button>
+            <button type="button" className={journeyFilter === 'OT'  ? 'active' : ''} onClick={() => setJourneyFilter('OT')}>OT</button>
+            <button type="button" className={journeyFilter === 'NT'  ? 'active' : ''} onClick={() => setJourneyFilter('NT')}>NT</button>
+          </div>
+        </>
+      )}
+
+      <label className="map-layers-panel__check">
+        <input type="checkbox" checked={warmOverlay} onChange={(e) => setWarmOverlay(e.target.checked)} />
+        <span className="map-layers-panel__check-dot" style={{ background: '#f59e0b' }} />
+        Warm atlas tone
+      </label>
+
+      <p className="map-layers-panel__hint">Hover over a route for its name. Click a region to learn more.</p>
     </div>
   );
 }
@@ -194,6 +235,10 @@ export default function JourneyMap({
 }) {
   const [basemap, setBasemap] = useState('satellite');
   const [showAtlasRoutes, setShowAtlasRoutes] = useState(true);
+  const [showRegions, setShowRegions] = useState(true);
+  const [showWater, setShowWater] = useState(true);
+  const [showJourneyLabels, setShowJourneyLabels] = useState(true);
+  const [journeyFilter, setJourneyFilter] = useState('ALL'); // 'ALL' | 'OT' | 'NT'
   const [warmOverlay, setWarmOverlay] = useState(true);
   const [layersPanelOpen, setLayersPanelOpen] = useState(false);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
@@ -253,6 +298,11 @@ export default function JourneyMap({
 
   const routePts = useMemo(() => getRouteLatLngs(selected), [selected]);
 
+  const filteredJourneys = useMemo(() =>
+    CLASSIC_JOURNEYS.filter((j) =>
+      journeyFilter === 'ALL' || j.testament === journeyFilter
+    ), [journeyFilter]);
+
   const selectedPos = useMemo(() => getEventLatLng(selected), [selected.id]);
   const initialCenter = useRef([selectedPos.lat, selectedPos.lng]);
 
@@ -278,24 +328,102 @@ export default function JourneyMap({
           <MapFlyToSelection events={mapEvents} selectedId={selected.id} selectedEvent={selected} />
           <ZoomButtons />
 
-          <Pane name="classic-routes" style={{ zIndex: 399 }}>
-            {showAtlasRoutes &&
-              CLASSIC_JOURNEYS.map((j) => (
-                <Polyline
-                  key={j.id}
-                  positions={j.path}
-                  pathOptions={{
-                    color: j.color,
-                    weight: j.weight ?? 3,
-                    opacity: j.opacity ?? 0.75,
-                    dashArray: j.dashArray ?? '8 12',
-                    lineCap: 'round',
-                    lineJoin: 'round'
-                  }}
-                />
-              ))}
+          {/* ── Ancient kingdoms & borders ── */}
+          <Pane name="bible-regions" style={{ zIndex: 350 }}>
+            {showRegions && BIBLICAL_REGIONS.map((r) => (
+              <Polygon
+                key={r.id}
+                positions={r.coords}
+                pathOptions={{
+                  color: r.color,
+                  weight: r.weight ?? 1.5,
+                  opacity: 0.65,
+                  fillColor: r.color,
+                  fillOpacity: r.fillOpacity ?? 0.08,
+                  dashArray: '5 6',
+                  lineCap: 'round',
+                }}
+              >
+                {showJourneyLabels && (
+                  <Tooltip
+                    direction="center"
+                    permanent
+                    className="region-label-tooltip"
+                    offset={[0, 0]}
+                  >
+                    <span className="region-label-name">{r.name}</span>
+                  </Tooltip>
+                )}
+                <Popup className="bible-popup">
+                  <div className="bible-popup__inner">
+                    <strong className="bible-popup__title" style={{ color: r.color }}>{r.name}</strong>
+                    <p className="bible-popup__meta">{r.subtext}</p>
+                  </div>
+                </Popup>
+              </Polygon>
+            ))}
           </Pane>
 
+          {/* ── Water bodies ── */}
+          <Pane name="water-bodies" style={{ zIndex: 360 }}>
+            {showWater && WATER_BODIES.map((w) =>
+              w.id === 'jordan_river' ? (
+                <Polyline
+                  key={w.id}
+                  positions={w.coords}
+                  pathOptions={{ color: '#3b82f6', weight: 2.5, opacity: 0.7 }}
+                >
+                  {showJourneyLabels && (
+                    <Tooltip sticky className="water-label-tooltip">{w.name}</Tooltip>
+                  )}
+                </Polyline>
+              ) : (
+                <Polygon
+                  key={w.id}
+                  positions={w.coords}
+                  pathOptions={{
+                    color: '#1d4ed8',
+                    weight: 1,
+                    opacity: 0.6,
+                    fillColor: '#3b82f6',
+                    fillOpacity: w.fillOpacity,
+                  }}
+                >
+                  {showJourneyLabels && (
+                    <Tooltip direction="center" permanent className="water-label-tooltip">
+                      {w.name}
+                    </Tooltip>
+                  )}
+                </Polygon>
+              )
+            )}
+          </Pane>
+
+          {/* ── Classic journey routes ── */}
+          <Pane name="classic-routes" style={{ zIndex: 399 }}>
+            {showAtlasRoutes && filteredJourneys.map((j) => (
+              <Polyline
+                key={j.id}
+                positions={j.path}
+                pathOptions={{
+                  color: j.color,
+                  weight: j.weight ?? 3,
+                  opacity: j.opacity ?? 0.75,
+                  dashArray: j.dashArray ?? '8 12',
+                  lineCap: 'round',
+                  lineJoin: 'round'
+                }}
+              >
+                {showJourneyLabels && (
+                  <Tooltip sticky className="journey-label-tooltip">
+                    <span style={{ color: j.color }}>●</span>&nbsp;{j.label}
+                  </Tooltip>
+                )}
+              </Polyline>
+            ))}
+          </Pane>
+
+          {/* ── Selected event route ── */}
           <Pane name="event-routes" style={{ zIndex: 400 }}>
             {routePts.length >= 2 && (
               <Polyline
@@ -340,12 +468,13 @@ export default function JourneyMap({
         )}
         {layersPanelOpen && (
           <MapLayersPanel
-            basemap={basemap}
-            setBasemap={setBasemap}
-            showAtlasRoutes={showAtlasRoutes}
-            setShowAtlasRoutes={setShowAtlasRoutes}
-            warmOverlay={warmOverlay}
-            setWarmOverlay={setWarmOverlay}
+            basemap={basemap} setBasemap={setBasemap}
+            showAtlasRoutes={showAtlasRoutes} setShowAtlasRoutes={setShowAtlasRoutes}
+            showRegions={showRegions} setShowRegions={setShowRegions}
+            showWater={showWater} setShowWater={setShowWater}
+            showJourneyLabels={showJourneyLabels} setShowJourneyLabels={setShowJourneyLabels}
+            journeyFilter={journeyFilter} setJourneyFilter={setJourneyFilter}
+            warmOverlay={warmOverlay} setWarmOverlay={setWarmOverlay}
             onClose={() => setLayersPanelOpen(false)}
           />
         )}
