@@ -49,14 +49,18 @@ export default function BibleKnowledgeGraph() {
   const [highlightLinks, setHighlightLinks] = useState(new Set());
   const [showInfo,     setShowInfo]     = useState(false);
 
-  // Responsive resize
+  // Responsive resize — fire immediately on mount and on every size change
   useEffect(() => {
-    const obs = new ResizeObserver(() => {
+    const measure = () => {
       if (containerRef.current) {
         const { width, height } = containerRef.current.getBoundingClientRect();
-        setDimensions({ w: Math.floor(width), h: Math.floor(height) });
+        const w = Math.floor(width);
+        const h = Math.floor(height);
+        if (w > 0 && h > 0) setDimensions({ w, h });
       }
-    });
+    };
+    measure(); // fire once immediately
+    const obs = new ResizeObserver(measure);
     if (containerRef.current) obs.observe(containerRef.current);
     return () => obs.disconnect();
   }, []);
@@ -356,6 +360,7 @@ export default function BibleKnowledgeGraph() {
             return s ? nodeColor(s) : '#c9a84c';
           }}
           cooldownTicks={120}
+          onEngineStop={() => fgRef.current?.zoomToFit(400, 30)}
           d3AlphaDecay={0.025}
           d3VelocityDecay={0.4}
           enableNodeDrag

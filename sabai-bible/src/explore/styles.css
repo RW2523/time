@@ -1016,9 +1016,15 @@ button { cursor: pointer; }
   overflow: hidden;
   transition: height 0.25s ease;
 }
-/* Collapse map when Story tab is active so story player gets more vertical space */
+/* Collapse map when Story tab is active */
 .bjm-canvas[data-active-tab="story"] .bjm-map-strip {
   height: 200px;
+}
+/* Hide map strip entirely when Graph tab is active — graph needs all the height */
+.bjm-canvas[data-active-tab="graph"] .bjm-map-strip {
+  height: 0;
+  overflow: hidden;
+  border: none;
 }
 .bjm-map-strip .journey-map-card {
   flex: 1;
@@ -1424,7 +1430,11 @@ button { cursor: pointer; }
   gap: 4px;
   padding: 8px 12px 0;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.el-cat-tabs::-webkit-scrollbar { display: none; }
 .el-cat-tab {
   display: inline-flex;
   align-items: center;
@@ -1462,20 +1472,19 @@ button { cursor: pointer; }
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  margin-top: 3px;
-  padding: 2px 7px;
+  margin-top: 4px;
+  padding: 1px 6px;
   border-radius: 99px;
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 700;
-  letter-spacing: .05em;
+  letter-spacing: .04em;
   text-transform: uppercase;
-  background: rgba(from var(--badge-color) r g b / 0.15);
-  color: var(--badge-color);
-  border: 1px solid rgba(from var(--badge-color) r g b / 0.3);
+  background: rgba(255,255,255,.08);
+  color: var(--badge-color, #94a3b8);
+  border: 1px solid rgba(255,255,255,.1);
+  width: fit-content;
+  line-height: 1.6;
 }
-
-/* Fallback for browsers without relative color syntax */
-.event-cat-badge { background: rgba(255,255,255,.08); }
 
 /* ── Empty state ── */
 .el-empty {
@@ -1823,7 +1832,8 @@ button { cursor: pointer; }
 .bjm-tab-content--graph {
   padding: 0 !important;
   overflow: hidden !important;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -1835,7 +1845,8 @@ button { cursor: pointer; }
 .bkg-root {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   background: #050d18;
   overflow: hidden;
   font-family: var(--font-sans);
@@ -1984,6 +1995,7 @@ button { cursor: pointer; }
 .bkg-canvas-wrap {
   position: relative;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   background: #050d18;
 }
