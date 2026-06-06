@@ -28,7 +28,8 @@ import {
   BookOpen, CalendarDays, ChevronLeft, ChevronRight, Download,
   Filter, Film, GitBranch, HardDrive, Loader2, Map, MapPin, Maximize2,
   MessageCircle, Minimize2, Pause, Play, Search, Server, Settings,
-  Sparkles, TreePine, Users, Wand2, X
+  Sparkles, TreePine, Users, Wand2, X,
+  Navigation, Globe, Compass, Route, Tag, Building2, ArrowRightLeft
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -74,45 +75,93 @@ function roleForPerson(name, event) {
   return `Involved in ${event.title}`;
 }
 
+/* ── Category badge config ───────────────────────────────────── */
+const CATEGORY_META = {
+  travel:  { label: 'Travel',  icon: <Route size={11} />,     color: 'var(--cat-travel)'  },
+  event:   { label: 'Event',   icon: <Sparkles size={11} />,  color: 'var(--cat-event)'   },
+  people:  { label: 'People',  icon: <Users size={11} />,     color: 'var(--cat-people)'  },
+};
+
 /* ── Event List ──────────────────────────────────────────────── */
 function EventList({ events, selected, onSelect, query, setQuery, activeEra }) {
+  const [activeCategory, setActiveCategory] = useState('all');
   const listRef = useRef(null);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return events.filter((e) => {
       const matchQ = !q || [e.title, e.era, e.timelineDate, e.mapLocation, ...(e.references || []), ...(e.mainPeople || [])].join(' ').toLowerCase().includes(q);
       const matchEra = !activeEra || e.era.toLowerCase().includes(activeEra.toLowerCase()) || activeEra === 'All';
-      return matchQ && matchEra;
+      const matchCat = activeCategory === 'all' || e.category === activeCategory;
+      return matchQ && matchEra && matchCat;
     });
-  }, [events, query, activeEra]);
+  }, [events, query, activeEra, activeCategory]);
 
   useEffect(() => {
     listRef.current?.querySelector(`button[data-id="${selected.id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selected.id]);
 
+  const counts = useMemo(() => ({
+    all:    events.length,
+    travel: events.filter(e => e.category === 'travel').length,
+    event:  events.filter(e => e.category === 'event').length,
+    people: events.filter(e => e.category === 'people').length,
+  }), [events]);
+
   const summary = useMemo(() => {
-    if (activeEra && activeEra !== 'All') return `${activeEra} · ${filtered.length} of ${events.length}`;
-    if (filtered.length !== events.length) return `${filtered.length} match${filtered.length === 1 ? '' : 'es'} of ${events.length}`;
-    return `All ${events.length} stories`;
-  }, [activeEra, filtered.length, events.length]);
+    const label = activeCategory === 'all' ? 'All' : CATEGORY_META[activeCategory]?.label || activeCategory;
+    if (filtered.length !== events.length) return `${label} · ${filtered.length} of ${events.length}`;
+    return `All ${events.length} events`;
+  }, [activeCategory, filtered.length, events.length]);
+
+  const CATS = [
+    { id: 'all',    label: 'All',    icon: <BookOpen size={11} />,  count: counts.all    },
+    { id: 'travel', label: 'Travel', icon: <Route size={11} />,     count: counts.travel },
+    { id: 'event',  label: 'Events', icon: <Sparkles size={11} />,  count: counts.event  },
+    { id: 'people', label: 'People', icon: <Users size={11} />,     count: counts.people },
+  ];
 
   return (
     <section className="events-panel panel">
       <div className="panel-title-row">
-        <div><h2>Events</h2><p>{summary}</p></div>
+        <div><h2>Bible Events</h2><p>{summary}</p></div>
       </div>
-      <div className="event-list" ref={listRef}>
-        {filtered.map((ev) => (
-          <button key={ev.id} type="button" data-id={ev.id} onClick={() => onSelect(ev.id)}
-            className={`event-row${ev.id === selected.id ? ' selected' : ''}`}>
-            <EventArtIcon order={ev.order} mapIcon={ev.mapIcon} variant="list" />
-            <span className="event-copy">
-              <strong>{ev.title}</strong>
-              <small>{ev.references?.[0]} · {ev.timelineDate}</small>
-            </span>
-            <span className="event-order">{ev.order}</span>
+
+      {/* Category filter tabs */}
+      <div className="el-cat-tabs">
+        {CATS.map(c => (
+          <button key={c.id} type="button"
+            className={`el-cat-tab${activeCategory === c.id ? ' active' : ''}`}
+            onClick={() => setActiveCategory(c.id)}>
+            {c.icon} {c.label}
+            <span className="el-cat-count">{c.count}</span>
           </button>
         ))}
+      </div>
+
+      <div className="event-list" ref={listRef}>
+        {filtered.map((ev) => {
+          const catMeta = CATEGORY_META[ev.category];
+          return (
+            <button key={ev.id} type="button" data-id={ev.id} onClick={() => onSelect(ev.id)}
+              className={`event-row${ev.id === selected.id ? ' selected' : ''}`}>
+              <EventArtIcon order={ev.order} mapIcon={ev.mapIcon} variant="list" />
+              <span className="event-copy">
+                <strong>{ev.title}</strong>
+                <small>{ev.references?.[0]} · {ev.timelineDate}</small>
+                {catMeta && (
+                  <span className="event-cat-badge" style={{ '--badge-color': catMeta.color }}>
+                    {catMeta.icon} {catMeta.label}
+                  </span>
+                )}
+              </span>
+              <span className="event-order">{ev.order}</span>
+            </button>
+          );
+        })}
+        {filtered.length === 0 && (
+          <p className="el-empty">No {activeCategory !== 'all' ? activeCategory : ''} events match your filter.</p>
+        )}
       </div>
     </section>
   );
@@ -196,8 +245,15 @@ function Timeline({ activeEra, setActiveEra, scrollFocusPulse = 0 }) {
 
 /* ── Info Panel ──────────────────────────────────────────────── */
 function InfoPanel({ selected, content, loading, onGenerate }) {
+  const catMeta   = CATEGORY_META[selected.category] || CATEGORY_META.event;
+  const pc        = selected.placeContext || {};
+  const journey   = selected.journey;
+  const eventTags = selected.eventTags || selected.tags || [];
+  const roleTags  = selected.roleTags  || [];
+
   return (
     <div className="info-panel">
+      {/* ── Hero row ── */}
       <div className="info-panel__hero">
         <EventArtIcon order={selected.order} mapIcon={selected.mapIcon} variant="hero" />
         <div className="info-panel__hero-body">
@@ -208,9 +264,97 @@ function InfoPanel({ selected, content, loading, onGenerate }) {
             {selected.era && <span className="info-panel__era-chip">{selected.era}</span>}
             {selected.mapLocation && <span><MapPin size={12} aria-hidden /> {selected.mapLocation}</span>}
           </div>
+          {/* Category badge */}
+          <span className="ip-cat-badge" style={{ '--badge-color': catMeta.color }}>
+            {catMeta.icon} {catMeta.label}
+          </span>
         </div>
       </div>
 
+      {/* ── Thematic event tags ── */}
+      {eventTags.length > 0 && (
+        <div className="ip-tag-row">
+          <Tag size={11} className="ip-tag-row__icon" />
+          {eventTags.map(t => <span key={t} className="ip-event-tag">{t}</span>)}
+        </div>
+      )}
+
+      {/* ── Place context card: ancient → modern ── */}
+      {pc.ancient && (
+        <div className="ip-place-card">
+          <div className="ip-place-card__header">
+            <Globe size={13} /> <strong>Location — Ancient &amp; Modern</strong>
+          </div>
+          <div className="ip-place-card__row">
+            <div className="ip-place-card__col">
+              <span className="ip-place-label">Ancient Name</span>
+              <span className="ip-place-value">{pc.ancient}</span>
+            </div>
+            <ArrowRightLeft size={14} className="ip-place-arrow" />
+            <div className="ip-place-card__col">
+              <span className="ip-place-label">Modern Name</span>
+              <span className="ip-place-value ip-place-value--modern">{pc.modern}</span>
+            </div>
+          </div>
+          {pc.construction && (
+            <p className="ip-place-construction"><Building2 size={11} /> {pc.construction}</p>
+          )}
+          {pc.significance && (
+            <p className="ip-place-significance"><Sparkles size={11} /> {pc.significance}</p>
+          )}
+        </div>
+      )}
+
+      {/* ── Journey route card (travel events only) ── */}
+      {journey && (
+        <div className="ip-journey-card">
+          <div className="ip-journey-card__header">
+            <Route size={13} /> <strong>Journey Details</strong>
+          </div>
+          <div className="ip-journey-grid">
+            <div className="ip-journey-item">
+              <span className="ip-journey-lbl">Who Travelled</span>
+              <span className="ip-journey-val">{journey.travelers?.join(', ')}</span>
+            </div>
+            <div className="ip-journey-item">
+              <span className="ip-journey-lbl">From</span>
+              <span className="ip-journey-val">{journey.from}</span>
+            </div>
+            <div className="ip-journey-item">
+              <span className="ip-journey-lbl">To</span>
+              <span className="ip-journey-val">{journey.to}</span>
+            </div>
+            {journey.via?.length > 0 && (
+              <div className="ip-journey-item">
+                <span className="ip-journey-lbl">Via</span>
+                <span className="ip-journey-val">{journey.via.join(' → ')}</span>
+              </div>
+            )}
+            <div className="ip-journey-item">
+              <span className="ip-journey-lbl">Mode of Travel</span>
+              <span className="ip-journey-val">{journey.mode}</span>
+            </div>
+            {journey.companions?.length > 0 && (
+              <div className="ip-journey-item">
+                <span className="ip-journey-lbl">Companions</span>
+                <span className="ip-journey-val">{journey.companions.join(', ')}</span>
+              </div>
+            )}
+            <div className="ip-journey-item ip-journey-item--wide">
+              <span className="ip-journey-lbl">Reason / Purpose</span>
+              <span className="ip-journey-val">{journey.reason}</span>
+            </div>
+            {journey.distance && (
+              <div className="ip-journey-item">
+                <span className="ip-journey-lbl">Distance</span>
+                <span className="ip-journey-val ip-journey-val--highlight">{journey.distance}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Main content cards ── */}
       <div className="info-panel__grid">
         <div className="info-panel__card info-panel__card--wide">
           <h4><BookOpen size={11} aria-hidden /> Event Details</h4>
@@ -230,7 +374,25 @@ function InfoPanel({ selected, content, loading, onGenerate }) {
         </div>
       </div>
 
-      {(selected.mainPeople || []).length > 0 && (
+      {/* ── Role tags (enriched person chips) ── */}
+      {roleTags.length > 0 ? (
+        <div className="info-panel__people">
+          <h4>People &amp; Their Roles</h4>
+          <div className="ip-role-list">
+            {roleTags.map((rt) => (
+              <div key={rt.person} className="ip-role-card">
+                <div className="ip-role-card__avatar">{initials(rt.person)}</div>
+                <div className="ip-role-card__body">
+                  <strong>{rt.person}</strong>
+                  <span className="ip-role-badge">{rt.role}</span>
+                  {rt.origin && <small className="ip-role-origin"><Globe size={10} /> {rt.origin}</small>}
+                  {rt.relation && <p className="ip-role-relation">{rt.relation}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (selected.mainPeople || []).length > 0 && (
         <div className="info-panel__people">
           <h4>People in This Story</h4>
           <div className="info-panel__people-chips">
@@ -349,18 +511,22 @@ function PeoplePanel({ selected }) {
       {people.length === 0 && <p className="family-panel__empty">No people listed for this event.</p>}
 
       <div className="people-panel-view__list">
-        {people.map((name) => (
-          <button key={name} type="button"
-            className={`person-card${activeName === name ? ' active' : ''}`}
-            onClick={() => setActiveName(activeName === name ? null : name)}>
-            <div className="portrait gold">{initials(name)}</div>
-            <div>
-              <strong>{name}</strong>
-              <small>{roleForPerson(name, selected)}</small>
-            </div>
-            <ChevronRight size={15} className="person-card__chev" aria-hidden />
-          </button>
-        ))}
+        {people.map((name) => {
+          const rt = (selected.roleTags || []).find(r => r.person === name);
+          return (
+            <button key={name} type="button"
+              className={`person-card${activeName === name ? ' active' : ''}`}
+              onClick={() => setActiveName(activeName === name ? null : name)}>
+              <div className="portrait gold">{initials(name)}</div>
+              <div>
+                <strong>{name}</strong>
+                <small>{rt?.role || roleForPerson(name, selected)}</small>
+                {rt?.origin && <span className="pc-origin"><Globe size={10} /> {rt.origin}</span>}
+              </div>
+              <ChevronRight size={15} className="person-card__chev" aria-hidden />
+            </button>
+          );
+        })}
       </div>
 
       {activeName && (
@@ -373,6 +539,18 @@ function PeoplePanel({ selected }) {
               {selected.references?.[0] && <small><BookOpen size={11} aria-hidden /> {selected.references[0]}</small>}
             </div>
           </div>
+          {/* Role tag info */}
+          {(() => {
+            const rt = (selected.roleTags || []).find(r => r.person === activeName);
+            if (!rt) return null;
+            return (
+              <div className="perspective-card__roletags">
+                <span className="ip-role-badge">{rt.role}</span>
+                {rt.origin && <span className="pc-origin"><Globe size={10} /> {rt.origin}</span>}
+                {rt.relation && <p className="pc-relation">{rt.relation}</p>}
+              </div>
+            );
+          })()}
           <p className="perspective-card__body">{perspectiveEntry?.perspective ?? fallback}</p>
         </div>
       )}

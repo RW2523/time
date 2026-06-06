@@ -1408,6 +1408,306 @@ button { cursor: pointer; }
   border-top: 0;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   CATEGORY SYSTEM — Travel / Events / People
+════════════════════════════════════════════════════════════════ */
+
+:root {
+  --cat-travel:  #f59e0b;
+  --cat-event:   #6366f1;
+  --cat-people:  #10b981;
+}
+
+/* ── Category tabs in EventList ── */
+.el-cat-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.el-cat-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px 8px 0 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color .18s, background .18s;
+}
+.el-cat-tab:hover { color: var(--ink); background: rgba(255,255,255,.04); }
+.el-cat-tab.active { color: var(--gold); background: rgba(212,175,110,.08); border-bottom: 2px solid var(--gold); }
+.el-cat-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.08);
+  font-size: 9px;
+  font-weight: 800;
+}
+.el-cat-tab.active .el-cat-count { background: rgba(212,175,110,.2); }
+
+/* ── Category badge on event rows ── */
+.event-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  background: rgba(from var(--badge-color) r g b / 0.15);
+  color: var(--badge-color);
+  border: 1px solid rgba(from var(--badge-color) r g b / 0.3);
+}
+
+/* Fallback for browsers without relative color syntax */
+.event-cat-badge { background: rgba(255,255,255,.08); }
+
+/* ── Empty state ── */
+.el-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   INFO PANEL ENHANCEMENTS
+════════════════════════════════════════════════════════════════ */
+
+/* Category badge next to title */
+.ip-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  background: rgba(255,255,255,.07);
+  color: var(--badge-color, var(--gold));
+  border: 1px solid rgba(255,255,255,.1);
+}
+
+/* ── Thematic tag row ── */
+.ip-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.ip-tag-row__icon { color: var(--muted); flex-shrink: 0; }
+.ip-event-tag {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  background: rgba(99,102,241,.14);
+  color: #a5b4fc;
+  border: 1px solid rgba(99,102,241,.25);
+}
+
+/* ── Place context card ── */
+.ip-place-card {
+  margin: 14px 18px 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, .07);
+  border: 1px solid rgba(16, 185, 129, .2);
+}
+.ip-place-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #34d399;
+  margin-bottom: 10px;
+}
+.ip-place-card__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.ip-place-card__col { flex: 1; }
+.ip-place-label {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.ip-place-value {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.ip-place-value--modern { color: #6ee7b7; }
+.ip-place-arrow { color: var(--muted); margin-top: 14px; flex-shrink: 0; }
+.ip-place-construction,
+.ip-place-significance {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--ink-dim);
+  line-height: 1.5;
+  margin: 0 0 5px;
+}
+.ip-place-significance { color: #a7f3d0; font-style: italic; }
+
+/* ── Journey route card ── */
+.ip-journey-card {
+  margin: 14px 18px 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(245,158,11,.07);
+  border: 1px solid rgba(245,158,11,.22);
+}
+.ip-journey-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #fbbf24;
+  margin-bottom: 12px;
+}
+.ip-journey-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.ip-journey-item { display: flex; flex-direction: column; gap: 2px; }
+.ip-journey-item--wide { grid-column: 1 / -1; }
+.ip-journey-lbl {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.ip-journey-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.ip-journey-val--highlight {
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+/* ── Role cards (enriched people) ── */
+.ip-role-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.ip-role-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--border);
+  transition: background .18s;
+}
+.ip-role-card:hover { background: rgba(255,255,255,.06); }
+.ip-role-card__avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+  color: #0B192C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+.ip-role-card__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ip-role-card__body strong { font-size: 13px; color: var(--ink); }
+.ip-role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(212,175,110,.15);
+  color: var(--gold);
+  border: 1px solid rgba(212,175,110,.25);
+  width: fit-content;
+}
+.ip-role-origin {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+.ip-role-relation {
+  font-size: 11px;
+  color: var(--ink-dim);
+  line-height: 1.5;
+  margin: 2px 0 0;
+}
+
+/* ── People panel: origin tag ── */
+.pc-origin {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--muted);
+  font-style: normal;
+  margin-top: 1px;
+}
+.pc-relation {
+  font-size: 11px;
+  color: var(--ink-dim);
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+.perspective-card__roletags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
 /* ── Responsive ─── */
 @media (max-width: 860px) {
   .bjm-sidebar { width: 230px; }
