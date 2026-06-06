@@ -132,6 +132,9 @@ export default function BibleKnowledgeGraph() {
 
   // ── Custom node renderer ───────────────────────────────────────────────────
   const paintNode = useCallback((node, ctx, globalScale) => {
+    // Guard: node positions are NaN/undefined during first simulation ticks
+    if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
+
     const r   = nodeRadius(node);
     const col = nodeColor(node);
     const isHighlighted = highlightNodes.size === 0 || highlightNodes.has(node.id);
@@ -209,7 +212,8 @@ export default function BibleKnowledgeGraph() {
   const paintLink = useCallback((link, ctx) => {
     const s = link.source;
     const t = link.target;
-    if (!s?.x || !t?.x) return;
+    if (!Number.isFinite(s?.x) || !Number.isFinite(s?.y) ||
+        !Number.isFinite(t?.x) || !Number.isFinite(t?.y)) return;
     const key1 = `${s.id}__${t.id}`;
     const key2 = `${t.id}__${s.id}`;
     const isActive = highlightLinks.size === 0 || highlightLinks.has(key1) || highlightLinks.has(key2);
