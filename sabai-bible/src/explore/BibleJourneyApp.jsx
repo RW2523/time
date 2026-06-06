@@ -590,6 +590,11 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
   // Format selector — 'landscape' | 'reels'
   const [videoFormat, setVideoFormat] = useState('landscape');
 
+  // Modal state — shown when "Create story video" is first clicked
+  const [showFormatModal, setShowFormatModal] = useState(false);
+  // When a format is chosen before story exists, auto-render once story arrives
+  const [autoRenderFormat, setAutoRenderFormat] = useState(null);
+
   // Separate state per format so both can be cached
   const [videoState, setVideoState] = useState({
     landscape: { status: 'idle', progress: 0, url: null, ext: 'webm' },
@@ -623,6 +628,15 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
       });
     });
   }, [exportEventId]);
+
+  // Auto-render video when story arrives after a format was pre-selected from the modal
+  useEffect(() => {
+    if (!story || !autoRenderFormat) return;
+    const fmt = autoRenderFormat;
+    setAutoRenderFormat(null);
+    // Small delay so the story UI can paint first
+    setTimeout(() => handleMakeVideo(fmt), 400);
+  }, [story, autoRenderFormat]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-advance scenes slideshow (always runs so user sees all scenes)
   useEffect(() => {
@@ -736,29 +750,13 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
               </span>
             )}
 
-            {/* ── Format picker ── */}
-            <div className="video-format-picker" role="group" aria-label="Video format">
-              <button
-                type="button"
-                className={`vfp-btn${videoFormat === 'landscape' ? ' active' : ''}`}
-                onClick={() => setVideoFormat('landscape')}
-                title="Standard landscape video (1280×720, 16:9)">
-                <Film size={13} />
-                <span>Video</span>
-                <span className="vfp-dim">16:9</span>
-                {videoState.landscape.status === 'ready' && <span className="vfp-ready">✓</span>}
-              </button>
-              <button
-                type="button"
-                className={`vfp-btn vfp-btn--reels${videoFormat === 'reels' ? ' active' : ''}`}
-                onClick={() => setVideoFormat('reels')}
-                title="Vertical reel format (1080×1920, 9:16) — Instagram / TikTok / YouTube Shorts">
-                <Smartphone size={13} />
-                <span>Reel</span>
-                <span className="vfp-dim">9:16</span>
-                {videoState.reels.status === 'ready' && <span className="vfp-ready">✓</span>}
-              </button>
-            </div>
+            {/* ── Format badge (shows active format) ── */}
+            {(vs.status === 'ready' || vs.status === 'making') && (
+              <span className={`active-fmt-badge${videoFormat === 'reels' ? ' active-fmt-badge--reels' : ''}`}>
+                {videoFormat === 'reels' ? <Smartphone size={11} /> : <Film size={11} />}
+                {videoFormat === 'reels' ? 'Reel 9:16' : 'Video 16:9'}
+              </span>
+            )}
 
             {/* ── Create / Download video ── */}
             {!videoSupported ? (
@@ -767,10 +765,9 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
               </span>
             ) : vs.status === 'idle' || vs.status === 'error' ? (
               <button type="button" className="primary story-make-video-btn"
-                onClick={() => handleMakeVideo(videoFormat)} disabled={loading}
-                title={`Render a ~${estimateVideoDuration(story, videoFormat)}s ${videoFormat === 'reels' ? 'reel (9:16)' : 'video (16:9)'} — keep this tab visible`}>
-                {videoFormat === 'reels' ? <Smartphone size={15} /> : <Film size={15} />}
-                {videoFormat === 'reels' ? 'Create Reel' : 'Create Video'}
+                onClick={() => setShowFormatModal(true)} disabled={loading}
+                title="Choose video format and start rendering">
+                <Film size={15} /> Create Video
               </button>
             ) : vs.status === 'making' ? (
               <button type="button" className="primary story-make-video-btn" disabled>
@@ -782,8 +779,9 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
                   <Download size={15} /> Download {vs.ext.toUpperCase()}
                 </button>
                 <button type="button" className="secondary story-make-video-btn"
-                  onClick={() => handleMakeVideo(videoFormat)}>
-                  {videoFormat === 'reels' ? <Smartphone size={15} /> : <Film size={15} />} Re-create
+                  onClick={() => setShowFormatModal(true)}
+                  title="Render in a different format or re-create">
+                  <Film size={15} /> Change Format
                 </button>
               </>
             )}
@@ -819,11 +817,89 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
             </div>
           </div>
         ) : (
-          <button type="button" className="primary" onClick={onGenerate} disabled={loading}>
-            {loading ? <><Loader2 size={15} className="spin" /> Creating story…</> : <><Sparkles size={15} /> Create story video</>}
-          </button>
+          loading ? (
+            <button type="button" className="primary" disabled>
+              <Loader2 size={15} className="spin" /> Creating story…
+            </button>
+          ) : (
+            <button type="button" className="primary story-create-btn"
+              onClick={() => setShowFormatModal(true)}>
+              <Sparkles size={15} /> Create story video
+            </button>
+          )
         )}
       </div>
+
+      {/* ── Format Selection Modal ── */}
+      {showFormatModal && (
+        <div className="fmt-modal-backdrop" onClick={() => setShowFormatModal(false)}>
+          <div className="fmt-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="fmt-modal__header">
+              <Sparkles size={18} />
+              <h3>Choose your format</h3>
+              <p>Pick how you want to share this Bible story</p>
+            </div>
+            <div className="fmt-modal__cards">
+              {/* Normal Video */}
+              <button
+                type="button"
+                className="fmt-card fmt-card--video"
+                onClick={() => {
+                  setShowFormatModal(false);
+                  setVideoFormat('landscape');
+                  if (!story) {
+                    setAutoRenderFormat('landscape');
+                    onGenerate();
+                  } else {
+                    handleMakeVideo('landscape');
+                  }
+                }}>
+                <div className="fmt-card__icon">
+                  <Film size={32} />
+                </div>
+                <div className="fmt-card__label">Normal Video</div>
+                <div className="fmt-card__dim">16 : 9 · 1280 × 720</div>
+                <div className="fmt-card__desc">
+                  Landscape · YouTube<br />Presentations · TV
+                </div>
+                {videoState.landscape.status === 'ready' && (
+                  <div className="fmt-card__cached">✓ Ready</div>
+                )}
+              </button>
+
+              {/* Reels */}
+              <button
+                type="button"
+                className="fmt-card fmt-card--reels"
+                onClick={() => {
+                  setShowFormatModal(false);
+                  setVideoFormat('reels');
+                  if (!story) {
+                    setAutoRenderFormat('reels');
+                    onGenerate();
+                  } else {
+                    handleMakeVideo('reels');
+                  }
+                }}>
+                <div className="fmt-card__icon">
+                  <Smartphone size={32} />
+                </div>
+                <div className="fmt-card__label">Reels</div>
+                <div className="fmt-card__dim">9 : 16 · 1080 × 1920</div>
+                <div className="fmt-card__desc">
+                  Vertical · Instagram<br />TikTok · YouTube Shorts
+                </div>
+                {videoState.reels.status === 'ready' && (
+                  <div className="fmt-card__cached">✓ Ready</div>
+                )}
+              </button>
+            </div>
+            <button type="button" className="fmt-modal__close" onClick={() => setShowFormatModal(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Rendering progress banner ── */}
       {vs.status === 'making' && (
