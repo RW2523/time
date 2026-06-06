@@ -146,16 +146,15 @@ function EventList({ events, selected, onSelect, query, setQuery, activeEra }) {
           const catMeta = CATEGORY_META[ev.category];
           return (
             <button key={ev.id} type="button" data-id={ev.id} onClick={() => onSelect(ev.id)}
-              className={`event-row${ev.id === selected.id ? ' selected' : ''}`}>
+              className={`event-row${ev.id === selected.id ? ' selected' : ''}`}
+              style={{ '--row-cat-color': catMeta?.color || 'transparent' }}>
               <EventArtIcon order={ev.order} mapIcon={ev.mapIcon} variant="list" />
               <span className="event-copy">
                 <strong>{ev.title}</strong>
-                <small>{ev.references?.[0]} · {ev.timelineDate}</small>
-                {catMeta && (
-                  <span className="event-cat-badge" style={{ '--badge-color': catMeta.color }}>
-                    {catMeta.icon} {catMeta.label}
-                  </span>
-                )}
+                <small>
+                  {catMeta && <span className="event-cat-dot" style={{ background: catMeta.color }} />}
+                  {ev.references?.[0]} · {ev.timelineDate}
+                </small>
               </span>
               <span className="event-order">{ev.order}</span>
             </button>
