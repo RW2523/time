@@ -14,7 +14,8 @@ L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import localEvents  from './data/bibleEvents.json';
 import lineageTree  from './data/bible_lineage_timeline_family_tree.json';
-import JourneyMap   from './components/JourneyMap.jsx';
+import JourneyMap           from './components/JourneyMap.jsx';
+import BibleKnowledgeGraph  from './components/BibleKnowledgeGraph.jsx';
 import LineageTreeModal from './components/LineageTreeModal.jsx';
 import BibleTimelineExplorer from './features/timeline/BibleTimelineExplorer.jsx';
 import EventArtIcon  from './components/EventArtIcon.jsx';
@@ -30,7 +31,7 @@ import {
   MessageCircle, Minimize2, Pause, Play, Search, Server, Settings,
   Sparkles, TreePine, Users, Wand2, X,
   Navigation, Globe, Compass, Route, Tag, Building2, ArrowRightLeft,
-  Smartphone
+  Smartphone, Network
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -186,7 +187,8 @@ function TabBar({ activeTab, setActiveTab, selected }) {
     { id: 'info',   icon: <BookOpen size={14} />,  label: 'Info'   },
     { id: 'family', icon: <TreePine size={14} />,  label: 'Family' },
     { id: 'people', icon: <Users size={14} />,     label: 'People' },
-    { id: 'story',  icon: <Film size={14} />,        label: 'Video'  },
+    { id: 'story',  icon: <Film size={14} />,      label: 'Video'  },
+    { id: 'graph',  icon: <Network size={14} />,   label: 'Graph'  },
   ];
   return (
     <nav className="bjm-tab-bar" aria-label="Content tabs">
@@ -1197,6 +1199,13 @@ export default function BibleJourneyApp() {
                     audioRef={audioRef} playing={playing} setPlaying={setPlaying}
                     sceneIndex={sceneIndex} setSceneIndex={setSceneIndex}
                     sectionRef={storyPlayerRef} exportEventId={selected.id} />
+                </div>
+              )}
+
+              {/* Knowledge Graph tab */}
+              {activeTab === 'graph' && (
+                <div className="bjm-tab-content bjm-tab-content--graph">
+                  <BibleKnowledgeGraph />
                 </div>
               )}
             </div>
