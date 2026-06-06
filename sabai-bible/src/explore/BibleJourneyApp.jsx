@@ -640,10 +640,10 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   }, []);
   const enterCinema = useCallback(() => {
-    if (!story && videoStatus !== 'ready') return;
+    if (!story && vs.status !== 'ready') return;
     setVideoCinema(true);
     requestAnimationFrame(() => sectionRef?.current?.requestFullscreen?.().catch(() => {}));
-  }, [story, videoStatus, sectionRef]);
+  }, [story, vs.status, sectionRef]);
 
   useEffect(() => {
     if (!videoCinema) return;
