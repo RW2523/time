@@ -848,8 +848,9 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
                   setShowFormatModal(false);
                   setVideoFormat('landscape');
                   if (!story) {
+                    // generate story with landscape (16:9) images, then auto-render
                     setAutoRenderFormat('landscape');
-                    onGenerate();
+                    onGenerate('landscape');
                   } else {
                     handleMakeVideo('landscape');
                   }
@@ -875,9 +876,12 @@ function StoryPlayer({ story, loading, onGenerate, onRegenerate, cached, cacheBa
                   setShowFormatModal(false);
                   setVideoFormat('reels');
                   if (!story) {
+                    // generate story with portrait (9:16) images, then auto-render reels
                     setAutoRenderFormat('reels');
-                    onGenerate();
+                    onGenerate('portrait');
                   } else {
+                    // story already loaded — render reels using current images
+                    // (renderer adapts: full-bleed for portrait, blurred-bg for landscape)
                     handleMakeVideo('reels');
                   }
                 }}>
@@ -1161,12 +1165,13 @@ export default function BibleJourneyApp() {
     } finally { setContentLoading(false); }
   };
 
-  const generateStory = async ({ force = false } = {}) => {
+  // imageFormat: 'landscape' (wide 16:9 images) | 'portrait' (tall 9:16 images for reels)
+  const generateStory = async ({ force = false, imageFormat = 'landscape' } = {}) => {
     setStoryLoading(true); setStoryError(null); setStoryCached(false);
     try {
       const r = await fetch(`${API_BASE}/api/events/${selected.id}/story`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneCount: 4, force })
+        body: JSON.stringify({ sceneCount: 4, force, imageFormat })
       });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
@@ -1266,7 +1271,8 @@ export default function BibleJourneyApp() {
                   <StoryPanel apiBase={API_BASE} story={story} loading={storyLoading}
                     storyError={storyError} onClearError={() => setStoryError(null)}
                     cached={storyCached}
-                    onGenerate={() => generateStory()} onRegenerate={() => generateStory({ force: true })}
+                    onGenerate={(imgFmt) => generateStory({ imageFormat: imgFmt || 'landscape' })}
+                    onRegenerate={(imgFmt) => generateStory({ force: true, imageFormat: imgFmt || 'landscape' })}
                     cacheBanner={!story && !storyError && storyCacheBanner && storyCacheBanner.eventId === selectedId ? storyCacheBanner : null}
                     onLoadCachedInline={loadCachedStory}
                     onOpenReplaceModal={() => { if (storyCacheBanner) { setStoryCacheModal({ ...storyCacheBanner, enterConfirm: true }); setStoryCacheBanner(null); } }}

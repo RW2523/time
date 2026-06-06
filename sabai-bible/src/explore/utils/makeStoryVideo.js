@@ -279,7 +279,7 @@ function drawFrameReels(ctx2d, state, story, images) {
     ctx2d.globalAlpha = 1;
 
   } else if (seg.type === 'scene') {
-    // ── Reels scene: full-bleed image, bottom text overlay ───────────────────
+    // ── Reels scene ──────────────────────────────────────────────────────────
     const img   = images[seg.sceneIdx];
     const scene = story.scenes[seg.sceneIdx];
 
@@ -287,30 +287,74 @@ function drawFrameReels(ctx2d, state, story, images) {
     const fadeIn  = clamp(segT / transFrac, 0, 1);
     const fadeOut = segT > 1 - transFrac ? clamp((1 - segT) / transFrac, 0, 1) : 1;
     const imgAlpha = easeOut(fadeIn) * easeOut(fadeOut);
+    const kbScale  = 1 + easeInOut(segT) * 0.05;
 
-    // Ken Burns — slight zoom for reels too
-    const kbScale = 1 + easeInOut(segT) * 0.05;
+    // ── Portrait images (generated 9:16): full-bleed cover fill ──────────────
+    // ── Landscape images (16:9 fallback): blurred bg + fitted image in upper zone
+    const isPortrait = story.imageFormat === 'portrait';
 
     if (img) {
       ctx2d.globalAlpha = imgAlpha;
-      drawImageCover(ctx2d, img, W, H, kbScale);
+
+      if (isPortrait) {
+        // Portrait-generated: fill the full frame
+        drawImageCover(ctx2d, img, W, H, kbScale);
+      } else {
+        // Landscape image: draw blurred + darkened version as full-bleed background
+        ctx2d.save();
+        ctx2d.filter = 'blur(28px) brightness(0.35) saturate(1.2)';
+        drawImageCover(ctx2d, img, W, H, 1.12);
+        ctx2d.restore();
+
+        // Dark overlay on top of blurred background
+        ctx2d.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx2d.fillRect(0, 0, W, H);
+
+        // Draw the clear landscape image fitted (letterboxed) in the upper 52% of the frame
+        const imgZoneTop  = Math.round(H * 0.08);   // 8% from top
+        const imgZoneH    = Math.round(H * 0.52);   // 52% of height
+        const imgZoneW    = W - 80;                  // 40px margin each side
+        const imgZoneLeft = 40;
+
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        let fitW = imgZoneW;
+        let fitH = fitW / imgAspect;
+        if (fitH > imgZoneH) { fitH = imgZoneH; fitW = fitH * imgAspect; }
+
+        const fitX = imgZoneLeft + (imgZoneW - fitW) / 2;
+        const fitY = imgZoneTop  + (imgZoneH - fitH) / 2;
+
+        // Subtle rounded shadow behind the image
+        ctx2d.save();
+        ctx2d.shadowColor = 'rgba(0,0,0,0.7)';
+        ctx2d.shadowBlur  = 32;
+        ctx2d.drawImage(img, fitX, fitY, fitW, fitH);
+        ctx2d.restore();
+
+        // Thin gold border around image
+        ctx2d.strokeStyle = 'rgba(201,168,76,0.4)';
+        ctx2d.lineWidth   = 2;
+        ctx2d.strokeRect(fitX + 1, fitY + 1, fitW - 2, fitH - 2);
+      }
+
       ctx2d.globalAlpha = 1;
     }
 
-    // ── Strong bottom gradient for text readability ──
-    const grad = ctx2d.createLinearGradient(0, H * 0.38, 0, H);
+    // ── Gradient: strong fade from image zone into text zone ──────────────────
+    const gradStartY = isPortrait ? H * 0.38 : H * 0.56;
+    const grad = ctx2d.createLinearGradient(0, gradStartY, 0, H);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(0.55, 'rgba(0,0,0,0.72)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.96)');
+    grad.addColorStop(0.4, 'rgba(0,0,0,0.78)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.97)');
     ctx2d.fillStyle = grad;
     ctx2d.fillRect(0, 0, W, H);
 
-    // ── Light top gradient ──
-    const topGrad = ctx2d.createLinearGradient(0, 0, 0, 220);
+    // Top gradient (brand bar area)
+    const topGrad = ctx2d.createLinearGradient(0, 0, 0, 200);
     topGrad.addColorStop(0, 'rgba(0,0,0,0.65)');
     topGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx2d.fillStyle = topGrad;
-    ctx2d.fillRect(0, 0, W, 220);
+    ctx2d.fillRect(0, 0, W, 200);
 
     ctx2d.globalAlpha = imgAlpha;
 

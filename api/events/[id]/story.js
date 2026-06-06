@@ -28,8 +28,13 @@ function fallbackStory(event) {
 }
 
 // ── Generate story plan via Gemini ────────────────────────────────────────────
-async function generateStoryPlan(ai, event, sceneCount) {
+async function generateStoryPlan(ai, event, sceneCount, imageFormat = 'landscape') {
   if (!ai) return fallbackStory(event);
+
+  const imgHint = imageFormat === 'portrait'
+    ? 'detailed 9:16 VERTICAL portrait illustrated scene prompt — tall composition, full-figure or close-up subjects, sky at top, ground at bottom, warm parchment palette, cinematic, no text overlays, no gore, no modern objects'
+    : 'detailed 16:9 widescreen illustrated scene prompt, warm parchment palette, cinematic, no text overlays, no gore, no modern objects';
+
   const prompt = `You are building an educational Bible Journey Map app. Return ONLY valid JSON — no markdown fences.
 
 Generate a story-video script for this Bible event:
@@ -45,7 +50,7 @@ Return this exact JSON shape:
       "title": "string",
       "durationSec": number,
       "narration": "string — 1-2 sentence scene caption",
-      "imagePrompt": "string — detailed 16:9 illustrated scene prompt, warm parchment palette, cinematic, no text overlays, no gore, no modern objects"
+      "imagePrompt": "string — ${imgHint}"
     }
   ],
   "quiz": [{"question":"string","answer":"string"}]
@@ -61,10 +66,14 @@ Generate exactly ${sceneCount} scenes. Keep facts strictly aligned with the scri
 }
 
 // ── Generate image → base64 data URL ─────────────────────────────────────────
-async function generateImage(ai, prompt, index, eventTitle) {
+async function generateImage(ai, prompt, index, eventTitle, aspect = 'landscape') {
   if (!ai) return placeholderSvgDataUrl(eventTitle, `Scene ${index}`, index);
   try {
-    const fullPrompt = `${prompt}\n\nArt direction: premium illustrated Bible storybook, parchment palette, warm golden-hour light, soft painterly detail, reverent and educational. 16:9 widescreen composition. No text overlays, no watermarks, no modern objects.`;
+    const compositionHint = aspect === 'portrait'
+      ? '9:16 VERTICAL portrait composition, tall frame, subjects shown full-body or close-up, sky fills upper third, strong foreground detail.'
+      : '16:9 widescreen horizontal composition, wide establishing shot, cinematic panorama.';
+
+    const fullPrompt = `${prompt}\n\nArt direction: premium illustrated Bible storybook, parchment palette, warm golden-hour light, soft painterly detail, reverent and educational. ${compositionHint} No text overlays, no watermarks, no modern objects.`;
     const r = await withRetry(
       () => ai.models.generateContent({
         model: IMAGE_MODEL,
@@ -190,15 +199,18 @@ export default async function handler(req, res) {
 
   // ── POST: generate (or return cache if not forced) ──────────────────────────
   try {
-    const sceneCount = Math.min(Math.max(Number(req.body?.sceneCount || 4), 3), 6);
-    const force      = Boolean(req.body?.force);
+    const sceneCount   = Math.min(Math.max(Number(req.body?.sceneCount || 4), 3), 6);
+    const force        = Boolean(req.body?.force);
+    // 'landscape' (default 16:9 horizontal) | 'portrait' (9:16 vertical for reels)
+    const imageFormat  = req.body?.imageFormat === 'portrait' ? 'portrait' : 'landscape';
 
     const events = await loadEvents();
     const event  = events.find((e) => e.id === id);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
-    // Return from Supabase cache unless force-refresh requested
-    if (!force) {
+    // Return from Supabase cache for landscape only (portrait stories are not cached
+    // to keep the cache clean — they are stored in IndexedDB on the client)
+    if (!force && imageFormat === 'landscape') {
       const cached = await loadFromSupabase(sb, id);
       if (cached) {
         console.log(`[story] cache hit for ${id}`);
@@ -206,13 +218,13 @@ export default async function handler(req, res) {
       }
     }
 
-    console.log(`[story] generating for ${id} (force=${force})`);
+    console.log(`[story] generating for ${id} (force=${force}, imageFormat=${imageFormat})`);
     const ai   = getAI();
-    const plan = await generateStoryPlan(ai, event, sceneCount);
+    const plan = await generateStoryPlan(ai, event, sceneCount, imageFormat);
 
-    // Generate images in parallel
+    // Generate images in parallel with the correct aspect
     const sceneImages = await Promise.all(
-      plan.scenes.map((s, i) => generateImage(ai, s.imagePrompt, i + 1, event.title))
+      plan.scenes.map((s, i) => generateImage(ai, s.imagePrompt, i + 1, event.title, imageFormat))
     );
 
     // Generate audio
@@ -222,6 +234,7 @@ export default async function handler(req, res) {
       mode:        ai ? 'gemini' : 'demo-fallback',
       eventId:     event.id,
       generatedAt: new Date().toISOString(),
+      imageFormat,                                    // 'landscape' | 'portrait'
       title:       plan.title || event.title,
       reference:   plan.reference || (event.references || []).join(', '),
       narration:   plan.narration,
@@ -231,8 +244,10 @@ export default async function handler(req, res) {
       event
     };
 
-    // Persist to Supabase asynchronously (don't block the response)
-    saveToSupabase(sb, event, manifest).catch(() => {});
+    // Persist landscape stories to Supabase; portrait stories are per-device only
+    if (imageFormat === 'landscape') {
+      saveToSupabase(sb, event, manifest).catch(() => {});
+    }
 
     return res.json(manifest);
   } catch (err) {
